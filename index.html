@@ -1,0 +1,2068 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>modelbx — Private Solana DEX</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#0a0a0a;--bg2:#111;--bg3:#181818;--bg4:#202020;
+  --line:rgba(255,255,255,0.07);--line2:rgba(255,255,255,0.12);--line3:rgba(255,255,255,0.2);
+  --text:#f0f0f0;--text2:#888;--text3:#444;--white:#fff;
+  --r:10px;--r2:8px;
+  --mono:'DM Mono',monospace;--serif:'Instrument Serif',serif;--sans:'DM Sans',sans-serif;
+  --priv:#4a9eff;--pos:#6fcf97;--neg:#eb5757;--warn:#f2994a;
+  --mbx:#c084fc;        /* MBX purple */
+  --mbusd:#34d399;      /* MBusd teal-green */
+  --acc:#a78bfa;        /* general accent violet */
+  --acc2:#38bdf8;       /* accent sky */
+  --btn-border:rgba(167,139,250,0.35);
+  --btn-glow:rgba(167,139,250,0.08);
+}
+*{margin:0;padding:0;box-sizing:border-box;}html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;min-height:100vh;-webkit-font-smoothing:antialiased;}
+
+/* ── NAV ── */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:rgba(10,10,10,0.96);backdrop-filter:blur(16px);border-bottom:1px solid var(--line);}
+.logo{font-size:17px;font-weight:600;color:var(--white);letter-spacing:-0.3px;cursor:pointer;font-family:var(--sans);}
+.nav-center{display:flex;gap:2px;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:3px;}
+.nav-tab{padding:6px 13px;border-radius:6px;border:none;background:transparent;color:var(--text2);font-family:var(--sans);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.nav-tab:hover{color:var(--text);}
+.nav-tab.active{background:var(--bg4);color:var(--white);border:1px solid var(--btn-border);box-shadow:0 0 10px var(--btn-glow);}
+.nav-right{display:flex;align-items:center;gap:10px;}
+.priv-pill{display:flex;align-items:center;gap:6px;padding:5px 12px;border:1px solid rgba(74,158,255,0.3);background:rgba(74,158,255,0.06);border-radius:6px;font-size:11px;font-weight:500;color:var(--priv);font-family:var(--mono);cursor:pointer;transition:all .15s;}
+.priv-pill:hover{border-color:rgba(74,158,255,0.5);}
+.priv-dot{width:6px;height:6px;border-radius:50%;background:var(--priv);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.btn-connect{padding:7px 18px;background:var(--white);border:none;border-radius:7px;color:#0a0a0a;font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-connect:hover{background:#ddd;}
+.btn-connect.connected{background:var(--bg3);color:var(--text);border:1px solid var(--btn-border);}
+.sol-badge{padding:5px 10px;border:1px solid rgba(52,211,153,0.3);border-radius:6px;font-size:11px;color:var(--mbusd);font-family:var(--mono);background:rgba(52,211,153,0.04);}
+.priv-bar{background:rgba(74,158,255,0.04);border-bottom:1px solid rgba(74,158,255,0.1);padding:7px 28px;font-size:11px;color:rgba(74,158,255,.7);font-family:var(--mono);display:none;align-items:center;gap:8px;}
+.priv-bar.on{display:flex;}
+
+/* ── PAGES ── */
+.page{display:none;padding-top:56px;min-height:100vh;}
+.page.active{display:block;}
+.container{max-width:1080px;margin:0 auto;padding:0 28px 80px;}
+.page-head{padding:44px 0 28px;border-bottom:1px solid var(--line);margin-bottom:28px;}
+.page-head h1{font-family:var(--serif);font-size:30px;font-weight:400;color:var(--white);font-style:italic;margin-bottom:6px;}
+.page-head p{color:var(--text2);font-size:13px;line-height:1.6;}
+
+/* ── CARDS ── */
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;}
+.card-head{padding:14px 18px;border-bottom:1px solid var(--line);font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);}
+.card-body{padding:18px;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+@media(max-width:680px){.two-col{grid-template-columns:1fr;}}
+
+/* ── FORMS ── */
+.form-row{margin-bottom:14px;}
+.form-label{display:block;font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:7px;font-family:var(--mono);}
+.form-input{width:100%;padding:10px 13px;background:var(--bg3);border:1px solid var(--line);border-radius:var(--r2);color:var(--text);font-family:var(--mono);font-size:13px;outline:none;transition:border-color .15s;}
+.form-input:focus{border-color:rgba(167,139,250,0.5);}
+.form-input::placeholder{color:var(--text3);}
+select.form-input{cursor:pointer;}
+
+/* ── BUTTONS ── */
+.main-btn{width:100%;padding:13px;background:var(--white);border:none;border-radius:9px;color:#0a0a0a;font-family:var(--sans);font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;margin-top:12px;}
+.main-btn:hover{background:#e0e0e0;}
+.main-btn.sec{background:var(--bg3);color:var(--text);border:1px solid var(--btn-border);box-shadow:0 0 8px var(--btn-glow);}
+.main-btn.sec:hover{border-color:rgba(167,139,250,0.6);color:var(--white);background:var(--bg4);box-shadow:0 0 14px rgba(167,139,250,0.12);}
+.main-btn.mbusd-btn{background:linear-gradient(135deg,rgba(52,211,153,0.15),rgba(52,211,153,0.05));border:1px solid rgba(52,211,153,0.35);color:var(--mbusd);}
+.main-btn.mbusd-btn:hover{border-color:rgba(52,211,153,0.6);background:linear-gradient(135deg,rgba(52,211,153,0.22),rgba(52,211,153,0.08));}
+.sec-btn{padding:8px 18px;background:var(--bg3);border:1px solid var(--btn-border);border-radius:7px;color:var(--text);font-family:var(--sans);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;transition:all .15s;box-shadow:0 0 8px var(--btn-glow);}
+.sec-btn:hover{border-color:rgba(167,139,250,0.6);color:var(--white);}
+
+/* ── SLIPPAGE / PILLS ── */
+.slip-row{display:flex;gap:6px;margin-bottom:14px;}
+.slip-btn{flex:1;padding:7px 0;background:var(--bg3);border:1px solid var(--line);border-radius:6px;color:var(--text2);font-family:var(--mono);font-size:11px;cursor:pointer;text-align:center;transition:all .15s;}
+.slip-btn:hover{border-color:rgba(167,139,250,0.4);color:var(--text);}
+.slip-btn.on{background:var(--bg4);border-color:var(--btn-border);color:var(--acc);box-shadow:0 0 8px var(--btn-glow);}
+.pill-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;}
+.pill{padding:6px 14px;background:var(--bg2);border:1px solid var(--line);border-radius:20px;font-size:12px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .15s;font-family:var(--mono);}
+.pill:hover{border-color:rgba(167,139,250,0.4);color:var(--text);}
+.pill.on{border-color:var(--btn-border);color:var(--acc);background:var(--bg3);}
+
+/* ── SWAP ── */
+.swap-wrap{display:flex;gap:20px;align-items:flex-start;justify-content:center;padding:28px 0;flex-wrap:wrap;}
+.swap-card{width:100%;max-width:440px;background:var(--bg2);border:1px solid var(--line);border-radius:14px;overflow:hidden;}
+.swap-head{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--line);}
+.swap-title{font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);}
+.tool-btn{width:30px;height:30px;border-radius:6px;border:1px solid var(--btn-border);background:var(--btn-glow);color:var(--acc);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.tool-btn:hover{border-color:rgba(167,139,250,0.6);background:rgba(167,139,250,0.12);color:var(--white);}
+.swap-body{padding:20px;}
+.tbox{background:var(--bg3);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;transition:border-color .15s;}
+.tbox:focus-within{border-color:rgba(167,139,250,0.4);}
+.tbox-label{font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;font-family:var(--mono);}
+.tbox-row{display:flex;align-items:center;gap:10px;}
+.tbox-input{flex:1;background:none;border:none;color:var(--white);font-size:26px;font-weight:300;font-family:var(--mono);outline:none;min-width:0;}
+.tbox-input::placeholder{color:var(--text3);}
+.token-btn{display:flex;align-items:center;gap:7px;padding:7px 12px;background:var(--bg4);border:1px solid var(--btn-border);border-radius:20px;cursor:pointer;white-space:nowrap;transition:all .15s;flex-shrink:0;box-shadow:0 0 8px var(--btn-glow);}
+.token-btn:hover{border-color:rgba(167,139,250,0.6);box-shadow:0 0 12px rgba(167,139,250,0.12);}
+.token-dot{width:18px;height:18px;border-radius:50%;}
+.token-label{font-size:13px;font-weight:500;color:var(--white);}
+.tbox-usd{font-size:11px;color:var(--text3);margin-top:8px;font-family:var(--mono);}
+.swap-mid{display:flex;justify-content:center;margin:8px 0;}
+.flip-btn{width:32px;height:32px;border-radius:8px;border:1px solid var(--btn-border);background:var(--btn-glow);color:var(--acc);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.flip-btn:hover{border-color:rgba(167,139,250,0.6);color:var(--white);transform:rotate(180deg);}
+.route-panel{background:var(--bg3);border:1px solid var(--line);border-radius:var(--r);padding:13px 15px;margin:14px 0;}
+.rr{display:flex;justify-content:space-between;padding:4px 0;font-size:12px;}
+.rk{color:var(--text2);}.rv{color:var(--text);font-family:var(--mono);}.rv.hi{color:var(--mbusd);}
+.rsep{height:1px;background:var(--line);margin:8px 0;}
+.rchips{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-top:4px;}
+.chip{padding:2px 8px;border:1px solid var(--btn-border);border-radius:4px;font-size:10px;color:var(--acc);font-family:var(--mono);background:var(--btn-glow);}
+.priv-banner{display:flex;align-items:flex-start;gap:12px;padding:11px 14px;background:rgba(74,158,255,0.04);border:1px solid rgba(74,158,255,0.15);border-radius:var(--r);margin-bottom:16px;font-size:12px;color:var(--text2);line-height:1.5;}
+.priv-banner strong{color:var(--priv);font-weight:500;}
+
+/* PRIVACY PANEL */
+.privacy-panel{width:220px;flex-shrink:0;}
+.priv-sec-title{font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--mono);margin-bottom:10px;}
+.priv-opt{display:flex;align-items:flex-start;justify-content:space-between;padding:12px 14px;background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);margin-bottom:8px;gap:10px;transition:border-color .15s;}
+.priv-opt:hover{border-color:rgba(167,139,250,0.3);}
+.pon{font-size:12px;font-weight:500;color:var(--text);margin-bottom:3px;}
+.pod{font-size:11px;color:var(--text3);line-height:1.4;}
+.toggle{position:relative;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;}
+.toggle-track{display:block;width:32px;height:18px;background:var(--bg4);border:1px solid var(--line2);border-radius:9px;cursor:pointer;transition:all .2s;position:relative;}
+.toggle input:checked+.toggle-track{background:rgba(167,139,250,0.3);border-color:var(--acc);}
+.toggle-track::after{content:'';position:absolute;top:2px;left:2px;width:12px;height:12px;background:var(--white);border-radius:50%;transition:transform .2s;}
+.toggle input:checked+.toggle-track::after{transform:translateX(14px);background:var(--acc);}
+
+/* TABLES */
+.table-wrap{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:20px;}
+.data-table{width:100%;border-collapse:collapse;}
+.data-table th{text-align:left;padding:10px 14px;font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--line);font-family:var(--mono);}
+.data-table td{padding:12px 14px;border-bottom:1px solid var(--line);font-size:13px;}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tr:hover td{background:rgba(167,139,250,0.03);}
+.mono{font-family:var(--mono);font-size:12px;}
+.pos{color:var(--pos);}.neg{color:var(--neg);}.muted{color:var(--text2);}
+.sec-title{font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--mono);padding-bottom:10px;margin-bottom:16px;border-bottom:1px solid var(--line);}
+
+/* POOL */
+.pool-item{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line);}
+.pool-item:last-child{border-bottom:none;}
+.pool-native{border-left:2px solid var(--mbusd);}
+
+/* CAP RAISE PROPOSALS */
+.prop-cap{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);}
+.prop-cap-tag{display:inline-block;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:500;font-family:var(--mono);letter-spacing:.5px;margin-bottom:8px;background:rgba(52,211,153,.12);color:var(--mbusd);border:1px solid rgba(52,211,153,.25);}
+.cap-math{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(52,211,153,.05);border:1px solid rgba(52,211,153,.15);border-radius:var(--r2);margin:10px 0;font-family:var(--mono);font-size:13px;}
+.cap-math-from{color:var(--text2);}
+.cap-math-arrow{color:var(--text3);}
+.cap-math-to{color:var(--mbusd);font-weight:500;}
+.cap-math-x{font-size:10px;color:var(--text3);margin-left:auto;padding:2px 7px;border:1px solid var(--line2);border-radius:4px;}
+.cooldown-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:4px;font-size:10px;font-family:var(--mono);}
+.cooldown-active{background:rgba(242,153,74,.1);color:var(--warn);border:1px solid rgba(242,153,74,.25);}
+.cooldown-clear{background:rgba(111,207,151,.08);color:var(--pos);border:1px solid rgba(111,207,151,.2);}
+.propose-cap-btn{width:100%;padding:11px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);border-radius:8px;color:var(--mbusd);font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;margin-top:8px;}
+.propose-cap-btn:hover{background:rgba(52,211,153,.15);border-color:rgba(52,211,153,.5);}
+.propose-cap-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* HEALTH */
+.health-wrap{margin:14px 0;}
+.health-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:6px;font-family:var(--mono);}
+.health-bar{height:4px;background:var(--bg4);border-radius:2px;overflow:hidden;}
+.health-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--neg),var(--warn),var(--pos));transition:width .4s;}
+
+/* STATS */
+.stat-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px;}
+.stat-box{flex:1;min-width:110px;background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;}
+.stat-label{font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
+.stat-val{font-size:18px;font-weight:300;font-family:var(--mono);color:var(--white);}
+.stat-sub{font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:3px;}
+
+/* MBusd badge */
+.mbusd-badge{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border:1px solid rgba(52,211,153,0.25);background:rgba(52,211,153,0.05);border-radius:var(--r2);font-size:12px;font-weight:500;color:var(--mbusd);font-family:var(--mono);margin-bottom:14px;}
+
+/* 1:1 EXCHANGE BOX */
+.exchange-box{background:var(--bg3);border:1px solid rgba(52,211,153,0.25);border-radius:var(--r);padding:18px;margin-top:18px;}
+.exchange-box-title{font-size:10px;font-weight:500;color:var(--mbusd);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:12px;}
+.ex-row{display:flex;gap:8px;align-items:center;margin-bottom:10px;}
+.ex-input{flex:1;background:var(--bg2);border:1px solid rgba(52,211,153,0.2);border-radius:var(--r2);padding:10px 12px;color:var(--white);font-family:var(--mono);font-size:14px;outline:none;transition:border-color .15s;}
+.ex-input:focus{border-color:rgba(52,211,153,0.5);}
+.ex-label{font-size:11px;font-weight:600;font-family:var(--mono);color:var(--mbusd);min-width:54px;text-align:right;}
+.ex-arrow{color:var(--text3);font-size:16px;text-align:center;margin:6px 0;padding-left:4px;}
+.ex-rate{font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:12px;}
+.ex-rate span{color:var(--mbusd);}
+.ex-btn{width:100%;padding:11px;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.35);border-radius:8px;color:var(--mbusd);font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}
+.ex-btn:hover{background:rgba(52,211,153,0.18);border-color:rgba(52,211,153,0.6);}
+
+/* GOV */
+.gov-layout{display:grid;grid-template-columns:1fr 300px;gap:20px;}
+@media(max-width:860px){.gov-layout{grid-template-columns:1fr;}}
+.proposal{padding:16px;border-bottom:1px solid var(--line);}
+.proposal:last-child{border-bottom:none;}
+.prop-status{display:inline-block;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:500;font-family:var(--mono);letter-spacing:.5px;margin-bottom:8px;}
+.prop-active{background:rgba(74,158,255,.1);color:var(--priv);border:1px solid rgba(74,158,255,.2);}
+.prop-passed{background:rgba(255,255,255,.04);color:var(--text2);border:1px solid var(--line);}
+.prop-title{font-size:14px;color:var(--white);margin-bottom:5px;line-height:1.4;}
+.prop-meta{font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:10px;}
+.vote-bar{height:3px;background:var(--bg4);border-radius:2px;display:flex;margin:6px 0;}
+.vote-y{background:var(--pos);border-radius:2px 0 0 2px;}
+.vote-n{background:var(--neg);border-radius:0 2px 2px 0;}
+.vote-nums{display:flex;justify-content:space-between;font-size:10px;font-family:var(--mono);margin-top:4px;}
+.vote-actions{display:flex;gap:6px;margin-top:10px;}
+.vote-btn{padding:6px 16px;border-radius:6px;border:1px solid;font-family:var(--sans);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;}
+.vote-yes{border-color:rgba(111,207,151,.3);color:var(--pos);background:rgba(111,207,151,.05);}
+.vote-yes:hover{background:rgba(111,207,151,.1);}
+.vote-no{border-color:rgba(235,87,87,.3);color:var(--neg);background:rgba(235,87,87,.05);}
+.vote-no:hover{background:rgba(235,87,87,.1);}
+
+.compose-box{background:var(--bg3);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:14px;}
+.compose-box textarea{width:100%;background:none;border:none;color:var(--text);font-family:var(--sans);font-size:13px;resize:none;outline:none;min-height:54px;line-height:1.5;}
+.compose-box textarea::placeholder{color:var(--text3);}
+.compose-foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);}
+.compose-hint{font-size:11px;color:var(--text3);font-family:var(--mono);}
+.post-btn{padding:6px 16px;background:var(--btn-glow);border:1px solid var(--btn-border);border-radius:6px;color:var(--acc);font-family:var(--sans);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;}
+.post-btn:hover{border-color:rgba(167,139,250,0.6);color:var(--white);}
+.cp{padding:14px;border-bottom:1px solid var(--line);}
+.cp:last-child{border-bottom:none;}
+.cp-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.cp-addr{font-size:11px;font-family:var(--mono);color:var(--text2);}
+.cp-badge{font-size:9px;font-family:var(--mono);padding:2px 5px;border-radius:3px;background:var(--btn-glow);color:var(--acc);border:1px solid var(--btn-border);}
+.cp-time{font-size:10px;color:var(--text3);font-family:var(--mono);margin-left:auto;}
+.cp-body{font-size:13px;color:var(--text2);line-height:1.5;}
+
+.side-card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);margin-bottom:14px;overflow:hidden;}
+.side-head{padding:13px 16px;border-bottom:1px solid var(--line);font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);}
+.side-body{padding:16px;}
+.info-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);font-size:12px;}
+.info-row:last-child{border-bottom:none;}
+.info-key{color:var(--text2);}
+.info-val{color:var(--text);font-family:var(--mono);font-size:11px;text-align:right;max-width:160px;word-break:break-all;}
+.apy-display{text-align:center;padding:12px 0;}
+.apy-num{font-size:32px;font-weight:300;font-family:var(--mono);color:var(--acc);}
+.apy-label{font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:.5px;margin-top:4px;}
+
+.port-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px;}
+.port-card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:16px;transition:border-color .15s;}
+.port-card:hover{border-color:rgba(167,139,250,0.3);}
+.pc-sym{font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
+.pc-amt{font-size:20px;font-weight:300;font-family:var(--mono);color:var(--white);}
+.pc-usd{font-size:11px;color:var(--text2);font-family:var(--mono);margin-top:4px;}
+
+.dex-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-top:14px;}
+.dex-tile{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r2);padding:12px;text-align:center;font-size:12px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .15s;}
+.dex-tile:hover{border-color:rgba(167,139,250,0.4);color:var(--acc);}
+.dex-tile span{display:block;font-size:18px;margin-bottom:5px;}
+.live-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--pos);margin-right:4px;vertical-align:middle;}
+
+/* ── DOCS ── */
+.docs-layout{display:grid;grid-template-columns:210px 1fr;gap:36px;padding-top:24px;}
+@media(max-width:800px){.docs-layout{grid-template-columns:1fr;}}
+.docs-nav{position:sticky;top:72px;height:fit-content;}
+.dns-group{margin-bottom:20px;}
+.dns-group-title{font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--mono);padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:8px;}
+.dns-link{display:block;padding:6px 10px;font-size:12px;color:var(--text3);cursor:pointer;border-radius:6px;transition:all .15s;font-family:var(--mono);border:none;background:none;text-align:left;width:100%;}
+.dns-link:hover{color:var(--text);background:var(--bg3);}
+.dns-link.on{color:var(--acc);background:var(--btn-glow);border:1px solid var(--btn-border);}
+.docs-content{min-width:0;}
+.doc-sec{margin-bottom:52px;scroll-margin-top:80px;}
+.doc-sec h2{font-family:var(--serif);font-size:26px;font-weight:400;font-style:italic;color:var(--white);margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--line);}
+.doc-sec h3{font-size:12px;font-weight:600;color:var(--acc);margin:18px 0 8px;text-transform:uppercase;letter-spacing:.5px;font-family:var(--mono);}
+.doc-sec p{font-size:13px;color:var(--text2);line-height:1.85;margin-bottom:10px;}
+.doc-sec ul,.doc-sec ol{padding-left:18px;margin-bottom:10px;}
+.doc-sec li{font-size:13px;color:var(--text2);line-height:1.85;margin-bottom:3px;}
+.doc-sec strong{color:var(--text);font-weight:500;}
+.callout{padding:13px 16px;background:rgba(74,158,255,.05);border:1px solid rgba(74,158,255,.15);border-radius:var(--r);margin:14px 0;font-size:12px;color:var(--text2);line-height:1.7;}
+.callout strong{color:var(--priv);}
+.doc-warn{padding:13px 16px;background:rgba(235,87,87,.05);border:1px solid rgba(235,87,87,.15);border-radius:var(--r);margin:14px 0;font-size:12px;color:var(--text2);line-height:1.7;}
+.doc-warn strong{color:var(--neg);}
+.doc-note{padding:13px 16px;background:rgba(52,211,153,.05);border:1px solid rgba(52,211,153,.15);border-radius:var(--r);margin:14px 0;font-size:12px;color:var(--text2);line-height:1.7;}
+.doc-note strong{color:var(--mbusd);}
+.code-block{background:var(--bg);border:1px solid var(--line);border-radius:var(--r2);padding:14px 16px;font-family:var(--mono);font-size:11px;color:#aec6e8;overflow-x:auto;white-space:pre;line-height:1.7;margin:10px 0;}
+.mbadge{display:inline-block;padding:2px 8px;border-radius:4px;font-family:var(--mono);font-size:10px;font-weight:500;margin-right:6px;}
+.mget{background:rgba(111,207,151,.15);color:var(--pos);}
+.mpost{background:rgba(74,158,255,.15);color:var(--priv);}
+.ep-block{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin:12px 0;}
+.ep-url{font-family:var(--mono);font-size:12px;color:var(--white);margin-bottom:10px;}
+.ep-desc{font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.6;}
+.param-tbl{width:100%;border-collapse:collapse;margin-top:8px;}
+.param-tbl th{text-align:left;padding:7px 10px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;font-family:var(--mono);border-bottom:1px solid var(--line);}
+.param-tbl td{padding:7px 10px;font-size:12px;border-bottom:1px solid var(--line);}
+.param-tbl tr:last-child td{border-bottom:none;}
+.pn{color:var(--mbusd);font-family:var(--mono);}
+.pt{color:var(--text3);font-family:var(--mono);}
+.pd{color:var(--text2);}
+.legal p{font-size:12px;color:var(--text3);line-height:1.9;margin-bottom:12px;}
+.legal h3{font-size:12px;font-weight:600;color:var(--text2);margin:18px 0 7px;text-transform:uppercase;letter-spacing:.5px;font-family:var(--mono);}
+.legal strong{color:var(--text2);}
+.legal ul{padding-left:16px;margin-bottom:10px;}
+.legal li{font-size:12px;color:var(--text3);line-height:1.9;margin-bottom:2px;}
+
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);align-items:center;justify-content:center;}
+.overlay.open{display:flex;}
+.modal{background:var(--bg2);border:1px solid var(--btn-border);border-radius:14px;padding:26px;width:100%;max-width:400px;position:relative;animation:fadeUp .2s ease;box-shadow:0 0 40px rgba(167,139,250,0.08);}
+@keyframes fadeUp{from{transform:translateY(12px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-x{position:absolute;top:18px;right:18px;background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;transition:color .15s;}
+.modal-x:hover{color:var(--text);}
+.modal h2{font-size:16px;font-weight:500;margin-bottom:4px;}
+.modal p{font-size:12px;color:var(--text2);margin-bottom:18px;}
+.wallet-list{display:flex;flex-direction:column;gap:6px;max-height:380px;overflow-y:auto;}
+.wallet-item{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg3);border:1px solid var(--line);border-radius:var(--r);cursor:pointer;transition:all .15s;}
+.wallet-item:hover{border-color:rgba(167,139,250,0.4);background:var(--bg4);}
+.w-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.w-name{font-size:13px;font-weight:500;}
+.w-tag{font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:1px;}
+
+.toast{position:fixed;bottom:24px;right:24px;z-index:300;background:var(--bg3);border:1px solid var(--btn-border);border-radius:8px;padding:11px 18px;font-size:13px;color:var(--text);display:none;animation:toastIn .2s ease;max-width:320px;line-height:1.4;box-shadow:0 0 20px var(--btn-glow);}
+.toast.show{display:block;}
+@keyframes toastIn{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+@media(max-width:660px){
+  .nav-center{display:none;}
+  .mobile-nav{position:fixed;bottom:0;left:0;right:0;z-index:100;background:var(--bg2);border-top:1px solid var(--line);display:flex;}
+  .mob-tab{flex:1;padding:12px 0;background:none;border:none;color:var(--text3);font-family:var(--mono);font-size:9px;cursor:pointer;text-align:center;transition:color .15s;text-transform:uppercase;letter-spacing:.5px;}
+  .mob-tab.on{color:var(--acc);}
+  .page{padding-bottom:64px;}
+}
+@media(min-width:661px){.mobile-nav{display:none;}}
+::-webkit-scrollbar{width:4px;height:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:2px;}
+
+/* CONFIG PAGE */
+.config-layout{display:grid;grid-template-columns:200px 1fr;gap:28px;padding-top:24px;}
+@media(max-width:760px){.config-layout{grid-template-columns:1fr;}}
+.cfg-nav{position:sticky;top:72px;height:fit-content;}
+.cfg-nav-title{font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--mono);padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:8px;}
+.cfg-link{display:block;padding:6px 10px;font-size:12px;color:var(--text3);cursor:pointer;border-radius:6px;transition:all .15s;font-family:var(--mono);border:none;background:none;text-align:left;width:100%;}
+.cfg-link:hover{color:var(--text);background:var(--bg3);}
+.cfg-link.on{color:var(--acc);background:var(--btn-glow);border:1px solid var(--btn-border);}
+.cfg-section{margin-bottom:40px;scroll-margin-top:80px;}
+.cfg-section h2{font-family:var(--serif);font-size:22px;font-weight:400;font-style:italic;color:var(--white);margin-bottom:4px;padding-bottom:12px;border-bottom:1px solid var(--line);}
+.cfg-section .cfg-subtitle{font-size:12px;color:var(--text2);margin-bottom:18px;line-height:1.6;}
+.cfg-field{margin-bottom:16px;}
+.cfg-field-label{font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;font-family:var(--mono);display:flex;align-items:center;gap:8px;}
+.cfg-field-wallet{font-size:11px;font-weight:600;color:var(--acc);font-family:var(--mono);padding:2px 7px;border:1px solid var(--btn-border);border-radius:4px;background:var(--btn-glow);}
+.cfg-field-desc{font-size:11px;color:var(--text3);line-height:1.5;margin-bottom:7px;}
+.cfg-input{width:100%;padding:10px 13px;background:var(--bg3);border:1px solid var(--line);border-radius:var(--r2);color:var(--text);font-family:var(--mono);font-size:12px;outline:none;transition:border-color .15s;}
+.cfg-input:focus{border-color:rgba(167,139,250,0.5);}
+.cfg-input::placeholder{color:var(--text3);}
+.cfg-input.set{border-color:rgba(52,211,153,0.35);color:var(--mbusd);}
+.cfg-input.unset{border-color:rgba(242,153,74,0.3);color:rgba(242,153,74,0.7);}
+.cfg-status-row{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg2);border:1px solid var(--line);border-radius:var(--r2);margin-bottom:8px;}
+.cfg-status-key{font-size:12px;color:var(--text2);font-family:var(--mono);}
+.cfg-status-val{font-size:11px;font-family:var(--mono);}
+.cfg-status-val.ok{color:var(--pos);}
+.cfg-status-val.warn{color:var(--warn);}
+.cfg-status-val.err{color:var(--neg);}
+.cfg-save-btn{padding:9px 22px;background:var(--btn-glow);border:1px solid var(--btn-border);border-radius:7px;color:var(--acc);font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;margin-top:4px;}
+.cfg-save-btn:hover{border-color:rgba(167,139,250,0.6);color:var(--white);}
+
+</style>
+</head>
+<body>
+
+<div class="priv-bar on" id="privBar"><span class="priv-dot"></span>Private mode active — wallet addresses obfuscated · trades routed through privacy relay</div>
+
+<nav>
+  <span class="logo" onclick="nav('swap',null)">modelbx</span>
+  <div class="nav-center">
+    <button class="nav-tab active" onclick="nav('swap',this)">Swap</button>
+    <button class="nav-tab" onclick="nav('explore',this)">Explore</button>
+    <button class="nav-tab" onclick="nav('pool',this)">Pool</button>
+    <button class="nav-tab" onclick="nav('borrow',this)">Borrow</button>
+    <button class="nav-tab" onclick="nav('portfolio',this)">Portfolio</button>
+    <button class="nav-tab" onclick="nav('governance',this)">Governance</button>
+    <button class="nav-tab" onclick="nav('docs',this)">Docs</button>
+    <button class="nav-tab" onclick="nav('config',this)">⚙ Config</button>
+  </div>
+  <div class="nav-right">
+    <div class="priv-pill" onclick="togglePriv()"><span class="priv-dot"></span>Private</div>
+    <span class="sol-badge">Solana</span>
+    <button class="btn-connect" id="connectBtn" onclick="openWallet()">Connect</button>
+  </div>
+</nav>
+
+<!-- ═══════════════════════ SWAP ═══════════════════════ -->
+<div id="page-swap" class="page active">
+  <div class="container">
+    <div class="swap-wrap">
+      <div class="swap-card">
+        <div class="swap-head"><span class="swap-title">Swap</span><div style="display:flex;gap:6px;"><button class="tool-btn">⚙</button><button class="tool-btn" onclick="calcSwap()">↺</button></div></div>
+        <div class="swap-body">
+          <div class="priv-banner" id="swapBanner"><span style="color:var(--priv);flex-shrink:0;">⬡</span><span><strong>Private swap on.</strong> Wallet masked, MEV protected, routed through privacy relay.</span></div>
+          <!-- ISSUE 3 FIX: Price disclaimer — required until live oracle is integrated -->
+          <div style="display:flex;align-items:center;gap:10px;padding:9px 13px;background:rgba(242,153,74,0.05);border:1px solid rgba(242,153,74,0.2);border-radius:8px;margin-bottom:14px;font-size:11px;color:rgba(242,153,74,0.85);font-family:var(--mono);line-height:1.5;">
+            <span style="flex-shrink:0;">⚠</span>
+            <span><strong style="color:rgba(242,153,74,1);">Demo prices.</strong> Rates shown are illustrative only. Live oracle integration (Pyth Network) required before real trading. Do not use for financial decisions.</span>
+          </div>
+          <div class="slip-row"><div class="slip-btn" onclick="setSlip(this)">0.1%</div><div class="slip-btn on" onclick="setSlip(this)">0.5%</div><div class="slip-btn" onclick="setSlip(this)">1.0%</div><div class="slip-btn" onclick="setSlip(this)">Auto</div></div>
+          <div class="tbox"><div class="tbox-label">Sell</div><div class="tbox-row"><input class="tbox-input" type="number" placeholder="0" id="sellAmt" oninput="calcSwap()"/><div class="token-btn" onclick="openPick('sell')"><div class="token-dot" style="background:linear-gradient(135deg,#9945FF,#14F195)"></div><span class="token-label" id="sellTok">SOL</span><span style="font-size:9px;color:var(--text3);">▾</span></div></div><div class="tbox-usd" id="sellUsd">$0.00</div></div>
+          <div class="swap-mid"><button class="flip-btn" onclick="flipToks()">⇅</button></div>
+          <div class="tbox"><div class="tbox-label">Buy</div><div class="tbox-row"><input class="tbox-input" type="number" placeholder="0" id="buyAmt" readonly/><div class="token-btn" onclick="openPick('buy')"><div class="token-dot" style="background:linear-gradient(135deg,#34d399,#6366f1)"></div><span class="token-label" id="buyTok">MBusd</span><span style="font-size:9px;color:var(--text3);">▾</span></div></div><div class="tbox-usd" id="buyUsd">$0.00</div></div>
+          <div class="route-panel"><div class="rr"><span class="rk">Rate</span><span class="rv">1 SOL = 183.24 MBusd</span></div><div class="rr"><span class="rk">Fee</span><span class="rv hi">0.01%</span></div><div class="rr"><span class="rk">Price impact</span><span class="rv">&lt; 0.01%</span></div><div class="rr"><span class="rk">Min received</span><span class="rv" id="minRec">0 MBusd</span></div><div class="rsep"></div><div class="rchips"><span class="chip">modelbx 62%</span><span style="color:var(--text3);font-size:10px;">—</span><span class="chip">Raydium 24%</span><span style="color:var(--text3);font-size:10px;">—</span><span class="chip">Orca 14%</span></div></div>
+          <button class="main-btn" id="swapBtn" onclick="doSwap()">Connect to Swap</button>
+        </div>
+      </div>
+      <div class="privacy-panel">
+        <div class="priv-sec-title">Privacy Controls</div>
+        <div class="priv-opt"><div><div class="pon">Private Mode</div><div class="pod">Route through relay, mask wallet</div></div><label class="toggle"><input type="checkbox" id="privToggle" onchange="togglePriv()" checked/><div class="toggle-track"></div></label></div>
+        <div class="priv-opt"><div><div class="pon">MEV Protection</div><div class="pod">Block front-running bots</div></div><label class="toggle"><input type="checkbox" checked/><div class="toggle-track"></div></label></div>
+        <div class="priv-opt"><div><div class="pon">Hidden Amounts</div><div class="pod">Obscure trade size until confirmed</div></div><label class="toggle"><input type="checkbox" checked/><div class="toggle-track"></div></label></div>
+        <div class="priv-opt"><div><div class="pon">Address Rotation</div><div class="pod">Fresh intermediary per trade</div></div><label class="toggle"><input type="checkbox"/><div class="toggle-track"></div></label></div>
+        <div class="priv-opt"><div><div class="pon">Private LP</div><div class="pod">Pool shares unlinkable from wallet</div></div><label class="toggle"><input type="checkbox"/><div class="toggle-track"></div></label></div>
+        <div style="margin-top:10px;padding:12px;background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);font-size:11px;color:var(--text3);line-height:1.6;">No KYC. No personal data collected.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ EXPLORE ═══════════════════════ -->
+<div id="page-explore" class="page">
+  <div class="container">
+    <div class="page-head"><h1>Explore</h1><p>Markets, pools, and DEX integrations on Solana.</p></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:18px 20px;background:var(--bg2);border:1px solid var(--btn-border);border-radius:var(--r);margin-bottom:20px;box-shadow:0 0 20px var(--btn-glow);"><div><div style="font-size:14px;font-weight:500;color:var(--white);margin-bottom:4px;">DEX Integration</div><div style="font-size:12px;color:var(--text2);">Connect your protocol to modelbx routing. Full API reference in Docs.</div></div><button class="sec-btn" onclick="nav('docs',document.querySelectorAll('.nav-tab')[6]);setTimeout(()=>scrollDoc('integration',null),100)">View Docs →</button></div>
+    <div class="sec-title">Connected DEXes</div>
+    <div class="dex-grid"><div class="dex-tile"><span>🌊</span>Raydium<br/><span style="font-size:10px;font-family:var(--mono);"><span class="live-dot"></span>Live</span></div><div class="dex-tile"><span>🌀</span>Orca<br/><span style="font-size:10px;font-family:var(--mono);"><span class="live-dot"></span>Live</span></div><div class="dex-tile"><span>☄️</span>Meteora<br/><span style="font-size:10px;font-family:var(--mono);"><span class="live-dot"></span>Live</span></div><div class="dex-tile"><span>📖</span>OpenBook<br/><span style="font-size:10px;font-family:var(--mono);"><span class="live-dot"></span>Live</span></div><div class="dex-tile"><span>⚡</span>Phoenix<br/><span style="font-size:10px;font-family:var(--mono);"><span class="live-dot"></span>Live</span></div><div class="dex-tile"><span>🦅</span>Drift<br/><span style="font-size:10px;font-family:var(--mono);"><span class="live-dot"></span>Live</span></div><div class="dex-tile"><span>🦋</span>Lifinity<br/><span style="font-size:10px;font-family:var(--mono);"><span class="live-dot"></span>Live</span></div><div class="dex-tile"><span>🪐</span>Saros<br/><span style="font-size:10px;font-family:var(--mono);"><span class="live-dot"></span>Live</span></div><div class="dex-tile"><span>🔮</span>Invariant<br/><span style="font-size:10px;font-family:var(--mono);"><span class="live-dot"></span>Live</span></div><div class="dex-tile" style="border-style:dashed;"><span>＋</span>Your DEX</div></div>
+    <div class="sec-title" style="margin-top:28px;">Tokens</div>
+    <div class="pill-row"><div class="pill on" onclick="setPill(this)">All</div><div class="pill" onclick="setPill(this)">Trending</div><div class="pill" onclick="setPill(this)">New</div><div class="pill" onclick="setPill(this)">Stablecoins</div></div>
+    <div class="table-wrap"><table class="data-table"><thead><tr><th>#</th><th>Token</th><th>Price</th><th>24h</th><th>Volume</th><th>Mkt Cap</th></tr></thead><tbody id="tokenTbl"></tbody></table></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ POOL ═══════════════════════ -->
+<div id="page-pool" class="page">
+  <div class="container">
+    <div class="page-head"><h1>Liquidity Pools</h1><p>Native modelbx pools backed by MBX and SOL collateral. MBusd pairs prioritized in routing.</p></div>
+    <div class="priv-banner"><span style="color:var(--priv);flex-shrink:0;">⬡</span><span><strong>Private LP available.</strong> Enable address rotation to keep positions unlinkable from your wallet.</span></div>
+
+    <!-- POOL BACKING INFO -->
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px;">
+      <div style="flex:1;min-width:200px;padding:16px;background:var(--bg2);border:1px solid rgba(192,132,252,0.25);border-radius:var(--r);">
+        <div style="font-size:10px;font-family:var(--mono);color:var(--mbx);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">MBX Reserve</div>
+        <div style="font-size:22px;font-weight:300;font-family:var(--mono);color:var(--white);">840M MBX</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:4px;">Protocol-owned liquidity backing</div>
+      </div>
+      <div style="flex:1;min-width:200px;padding:16px;background:var(--bg2);border:1px solid rgba(52,211,153,0.25);border-radius:var(--r);">
+        <div style="font-size:10px;font-family:var(--mono);color:var(--mbusd);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">MBusd in Pools</div>
+        <div style="font-size:22px;font-weight:300;font-family:var(--mono);color:var(--white);">14.2M MBusd</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:4px;">Native stablecoin liquidity</div>
+      </div>
+      <div style="flex:1;min-width:200px;padding:16px;background:var(--bg2);border:1px solid rgba(250,204,21,0.2);border-radius:var(--r);">
+        <div style="font-size:10px;font-family:var(--mono);color:#fbbf24;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">SOL Reserve</div>
+        <div style="font-size:22px;font-weight:300;font-family:var(--mono);color:var(--white);">42,000 SOL</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:4px;">Collateral reserve layer</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="card"><div class="card-head">Add Liquidity</div><div class="card-body">
+        <div class="form-row"><label class="form-label">Token A</label><div style="display:flex;gap:8px;"><select class="form-input" style="flex:1"><option>MBX</option><option>SOL</option><option>MBusd</option><option>USDC</option></select><input class="form-input" type="number" placeholder="0.00" style="flex:2"/></div></div>
+        <div class="form-row"><label class="form-label">Token B</label><div style="display:flex;gap:8px;"><select class="form-input" style="flex:1"><option>MBusd</option><option>SOL</option><option>MBX</option><option>USDC</option></select><input class="form-input" type="number" placeholder="0.00" style="flex:2"/></div></div>
+        <div class="form-row"><label class="form-label">Fee Tier</label><div class="slip-row"><div class="slip-btn" onclick="setSlip(this)">0.01%</div><div class="slip-btn on" onclick="setSlip(this)">0.05%</div><div class="slip-btn" onclick="setSlip(this)">0.30%</div><div class="slip-btn" onclick="setSlip(this)">1.00%</div></div></div>
+        <div style="border:1px solid var(--line);border-radius:var(--r2);padding:12px;margin-bottom:4px;"><div class="rr"><span class="rk">Est. APY</span><span class="rv" style="color:var(--pos);">24.8%</span></div><div class="rr"><span class="rk">Routing priority</span><span class="rv">High</span></div><div class="rr"><span class="rk">Your share</span><span class="rv">~0.00%</span></div></div>
+        <button class="main-btn" onclick="toast('Connect wallet to add liquidity')">Add Liquidity</button>
+      </div></div>
+      <div class="card"><div class="card-head">Top Pools</div><div id="poolList"></div></div>
+    </div>
+    <div style="margin-top:24px;"><div class="sec-title">Your Positions</div><div style="padding:36px;text-align:center;color:var(--text3);background:var(--bg2);border:1px dashed var(--line);border-radius:var(--r);font-size:13px;">Connect wallet to view positions</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ BORROW ═══════════════════════ -->
+<div id="page-borrow" class="page">
+  <div class="container">
+    <div class="page-head"><h1>Borrow</h1><p>Lock MBX or SOL to mint MBusd at 0% interest. Swap MBusd 1:1 for USDC instantly.</p></div>
+    <!-- SUPPLY CAP BANNER -->
+    <div id="supplyCapBanner" style="background:var(--bg2);border:1px solid var(--btn-border);border-radius:var(--r);padding:16px 20px;margin-bottom:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:10px;">
+        <div>
+          <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;">MBusd Supply Cap</div>
+          <div style="display:flex;align-items:baseline;gap:8px;">
+            <span id="capCurrentDisplay" style="font-size:22px;font-weight:300;font-family:var(--mono);color:var(--white);">0</span>
+            <span style="font-size:13px;color:var(--text3);font-family:var(--mono);">/ <span id="capMaxDisplay">500,000</span> MBusd</span>
+            <span id="capPctDisplay" style="font-size:11px;font-family:var(--mono);color:var(--acc);padding:2px 8px;border:1px solid var(--btn-border);border-radius:4px;background:var(--btn-glow);">0%</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;" id="capAdminControls">
+          <span class="cooldown-pill cooldown-clear" id="borrowCooldownPill">✓ Raise via governance</span>
+          <button onclick="nav('governance',document.querySelectorAll('.nav-tab')[5]);setTimeout(openProposeCapModal,100);" style="padding:6px 14px;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.25);border-radius:6px;color:var(--mbusd);font-family:var(--sans);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='rgba(52,211,153,0.5)'" onmouseout="this.style.borderColor='rgba(52,211,153,0.25)'">↑ Propose Cap Raise →</button>
+          <a onclick="toast('Emergency cap controls are in the Admin Portal — modelbx-admin.html')" style="padding:6px 14px;background:var(--bg3);border:1px solid var(--line2);border-radius:6px;color:var(--text3);font-family:var(--sans);font-size:11px;cursor:pointer;display:inline-block;">Admin portal →</a>
+        </div>
+      </div>
+      <div style="height:6px;background:var(--bg4);border-radius:3px;overflow:hidden;">
+        <div id="capProgressBar" style="height:100%;border-radius:3px;background:linear-gradient(90deg,var(--acc),var(--mbusd));transition:width .6s ease;width:0%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;font-family:var(--mono);color:var(--text3);">
+        <span>0 MBusd</span>
+        <span id="capNote">Launch cap — lift when protocol is stable</span>
+        <span id="capMaxLabel">500,000 MBusd</span>
+      </div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-box"><div class="stat-label">MBusd Supply</div><div class="stat-val" id="statSupply">0</div><div class="stat-sub">of <span id="statCap">500K</span> cap</div></div>
+      <div class="stat-box"><div class="stat-label">MBX Collateral</div><div class="stat-val">840M</div><div class="stat-sub">MBX locked</div></div>
+      <div class="stat-box"><div class="stat-label">SOL Collateral</div><div class="stat-val">$22.8M</div><div class="stat-sub">SOL locked</div></div>
+      <div class="stat-box"><div class="stat-label">Stability Pool</div><div class="stat-val">4.2M</div><div class="stat-sub">MBusd deposited</div></div>
+    </div>
+    <div class="priv-banner"><span style="color:var(--priv);flex-shrink:0;">⬡</span><span><strong>Private borrowing.</strong> Positions routed through relay accounts to prevent wallet-collateral correlation.</span></div>
+
+    <div class="two-col">
+      <!-- MINT CARD -->
+      <div>
+        <div class="card" style="margin-bottom:16px;"><div class="card-head">Mint MBusd — Lock Collateral</div><div class="card-body">
+          <div class="mbusd-badge">◈ MBusd · modelbx Native Stablecoin · Hard-pegged 1:1 via collateral redemption</div>
+          <div class="form-row"><label class="form-label">Collateral Asset</label><div style="display:flex;gap:8px;"><select class="form-input" style="flex:1" id="collAsset" onchange="calcBorrow()"><option value="mbx">MBX — $0.042</option><option value="sol">SOL — $183.24</option></select><input class="form-input" type="number" placeholder="0.00" id="collAmt" oninput="calcBorrow()" style="flex:2"/></div></div>
+          <div class="form-row"><label class="form-label">Mint MBusd</label><input class="form-input" type="number" placeholder="0.00" id="borrowOut" readonly/></div>
+          <div class="health-wrap"><div class="health-labels"><span>Health: <span id="healthNum">—</span></span><span>Min ratio: 150%</span></div><div class="health-bar"><div class="health-fill" id="healthFill" style="width:0%"></div></div></div>
+          <div style="border:1px solid var(--line);border-radius:var(--r2);padding:12px;margin:12px 0;">
+            <div class="rr"><span class="rk">Interest</span><span class="rv hi">0% — always</span></div>
+            <div class="rr"><span class="rk">Mint fee</span><span class="rv">0.5% once</span></div>
+            <div class="rr"><span class="rk">Max mintable</span><span class="rv" id="maxMint">0 MBusd</span></div>
+            <div class="rr"><span class="rk">Liquidation</span><span class="rv">Redistribution model</span></div>
+          </div>
+          <button class="main-btn mbusd-btn" onclick="toast('Connect wallet to mint MBusd')">Mint MBusd</button>
+        </div></div>
+
+        <!-- 1:1 EXCHANGE -->
+        <div class="exchange-box">
+          <div class="exchange-box-title">◈ MBusd ↔ USDC — 1:1 Exchange</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:14px;line-height:1.6;">MBusd is always redeemable at exactly 1:1 with USDC. No slippage. No price impact. Backed by protocol reserves.</div>
+
+          <!-- MBusd → USDC -->
+          <div style="background:var(--bg2);border:1px solid rgba(52,211,153,0.15);border-radius:var(--r2);padding:14px;margin-bottom:10px;">
+            <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;">MBusd → USDC</div>
+            <div class="ex-row">
+              <input class="ex-input" type="number" placeholder="0.00" id="exMBusdIn" oninput="calcEx1()"/>
+              <span class="ex-label">MBusd</span>
+            </div>
+            <div class="ex-arrow">↓</div>
+            <div class="ex-row">
+              <input class="ex-input" type="number" placeholder="0.00" id="exUSDCOut" readonly/>
+              <span class="ex-label" style="color:#60a5fa;">USDC</span>
+            </div>
+            <div class="ex-rate">Rate: <span>1 MBusd = 1.00 USDC</span> · Fee: 0%</div>
+            <button class="ex-btn" onclick="toast('Connect wallet to redeem MBusd for USDC')">Redeem MBusd → USDC</button>
+          </div>
+
+          <!-- USDC → MBusd -->
+          <div style="background:var(--bg2);border:1px solid rgba(52,211,153,0.15);border-radius:var(--r2);padding:14px;">
+            <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;">USDC → MBusd</div>
+            <div class="ex-row">
+              <input class="ex-input" type="number" placeholder="0.00" id="exUSDCIn" oninput="calcEx2()"/>
+              <span class="ex-label" style="color:#60a5fa;">USDC</span>
+            </div>
+            <div class="ex-arrow">↓</div>
+            <div class="ex-row">
+              <input class="ex-input" type="number" placeholder="0.00" id="exMBusdOut" readonly/>
+              <span class="ex-label">MBusd</span>
+            </div>
+            <div class="ex-rate">Rate: <span>1 USDC = 1.00 MBusd</span> · Fee: 0%</div>
+            <button class="ex-btn" onclick="toast('Connect wallet to convert USDC to MBusd')">Mint MBusd with USDC</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div>
+        <div class="card" style="margin-bottom:14px;"><div class="card-head">Liquidation & Redistribution</div><div class="card-body" style="display:flex;flex-direction:column;gap:12px;">
+          <div style="display:flex;gap:12px;"><div style="width:22px;height:22px;border-radius:50%;border:1px solid var(--btn-border);display:flex;align-items:center;justify-content:center;font-size:10px;font-family:var(--mono);color:var(--acc);flex-shrink:0;">1</div><div style="font-size:12px;color:var(--text2);line-height:1.6;">CR falls below 150% → protocol liquidates instantly.</div></div>
+          <div style="display:flex;gap:12px;"><div style="width:22px;height:22px;border-radius:50%;border:1px solid var(--btn-border);display:flex;align-items:center;justify-content:center;font-size:10px;font-family:var(--mono);color:var(--acc);flex-shrink:0;">2</div><div style="font-size:12px;color:var(--text2);line-height:1.6;"><strong style="color:var(--text)">Stability Pool absorbs first</strong> — depositors earn collateral at ~5–10% discount.</div></div>
+          <div style="display:flex;gap:12px;"><div style="width:22px;height:22px;border-radius:50%;border:1px solid var(--btn-border);display:flex;align-items:center;justify-content:center;font-size:10px;font-family:var(--mono);color:var(--acc);flex-shrink:0;">3</div><div style="font-size:12px;color:var(--text2);line-height:1.6;"><strong style="color:var(--text)">Redistribution if needed</strong> — remaining collateral + debt spread proportionally to all open positions. Bad debt is impossible.</div></div>
+          <div style="display:flex;gap:12px;"><div style="width:22px;height:22px;border-radius:50%;border:1px solid var(--btn-border);display:flex;align-items:center;justify-content:center;font-size:10px;font-family:var(--mono);color:var(--acc);flex-shrink:0;">4</div><div style="font-size:12px;color:var(--text2);line-height:1.6;">MBusd can be deposited to stability pool to earn rewards from liquidations.</div></div>
+        </div></div>
+
+        <div class="card"><div class="card-head">Stability Pool</div><div class="card-body">
+          <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px;">Deposit MBusd as first defense against liquidations. Earn MBX + SOL collateral at a discount.</div>
+          <div class="form-row"><label class="form-label">Deposit MBusd</label><input class="form-input" type="number" placeholder="0.00 MBusd"/></div>
+          <div class="rr" style="font-size:12px;margin-bottom:4px;"><span class="rk">Pool balance</span><span class="rv">4,200,000 MBusd</span></div>
+          <div class="rr" style="font-size:12px;margin-bottom:12px;"><span class="rk">Est. yield</span><span class="rv" style="color:var(--pos);">~8–15% in collateral</span></div>
+          <button class="main-btn sec" onclick="toast('Connect wallet to deposit into stability pool')">Deposit to Stability Pool</button>
+        </div></div>
+
+        <div class="card" style="margin-top:14px;"><div class="card-head">Use MBusd in Pools</div><div class="card-body">
+          <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:14px;">Put your minted MBusd to work immediately. Add it to MBX/MBusd or SOL/MBusd pools to earn additional swap fees.</div>
+          <button class="main-btn sec" onclick="nav('pool',document.querySelectorAll('.nav-tab')[2])">Go to Pool →</button>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PORTFOLIO ═══════════════════════ -->
+<div id="page-portfolio" class="page">
+  <div class="container">
+    <div id="portGate" style="padding:80px 0;text-align:center;"><div style="font-size:13px;color:var(--text3);margin-bottom:20px;font-family:var(--mono);">Connect wallet to view portfolio</div><button class="main-btn" style="max-width:200px;margin:0 auto;" onclick="openWallet()">Connect Wallet</button></div>
+    <div id="portContent" style="display:none;">
+      <div style="padding:36px 0 24px;border-bottom:1px solid var(--line);margin-bottom:24px;">
+        <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">Total Balance</div>
+        <div style="font-size:36px;font-weight:300;font-family:var(--mono);color:var(--white);">$12,483.22</div>
+        <div style="font-size:12px;color:var(--text2);font-family:var(--mono);margin-top:6px;">+$341.20 (+2.81%) today</div>
+      </div>
+      <div class="priv-banner" style="margin-bottom:20px;"><span style="color:var(--priv);flex-shrink:0;">⬡</span><span><strong>Privacy on.</strong> Portfolio data is local only. Nothing leaves your browser.</span></div>
+      <div class="sec-title">Balances</div><div class="port-grid" id="portGrid"></div>
+      <div class="sec-title">Positions</div>
+      <div class="table-wrap"><table class="data-table"><thead><tr><th>Position</th><th>Value</th><th>APY</th><th>Earned</th><th></th></tr></thead><tbody>
+        <tr><td>MBX / MBusd LP</td><td class="mono">$3,840.00</td><td class="mono pos">44.0%</td><td class="mono">$62.40</td><td><button class="sec-btn" style="padding:5px 12px;font-size:11px;">Manage</button></td></tr>
+        <tr><td>SOL / MBusd LP</td><td class="mono">$2,100.00</td><td class="mono pos">26.4%</td><td class="mono">$22.60</td><td><button class="sec-btn" style="padding:5px 12px;font-size:11px;">Manage</button></td></tr>
+        <tr><td>MBX Staked</td><td class="mono">$840.00</td><td class="mono pos">18.0%</td><td class="mono">$12.60</td><td><button class="sec-btn" style="padding:5px 12px;font-size:11px;">Manage</button></td></tr>
+        <tr><td>Borrow (MBusd)</td><td class="mono">200 MBusd</td><td class="mono">0% int.</td><td class="mono">—</td><td><button class="sec-btn" style="padding:5px 12px;font-size:11px;">Repay</button></td></tr>
+      </tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ GOVERNANCE ═══════════════════════ -->
+<div id="page-governance" class="page">
+  <div class="container">
+    <div class="page-head"><h1>Governance</h1><p>Stake MBX to vote on proposals. A simple majority triggers execution after the voting period. Supply cap raises double the cap automatically on passing.</p></div>
+    <div class="gov-layout">
+      <div>
+        <!-- CAP RAISE STATUS BAR -->
+        <div id="capGovStatus" style="background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;">MBusd Supply Cap Status</div>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <span style="font-size:14px;font-family:var(--mono);color:var(--white);">Current: <span id="govCapCurrent" style="color:var(--mbusd);">500,000</span> MBusd</span>
+              <span style="font-size:11px;font-family:var(--mono);color:var(--text3);">→ If raise passes: <span id="govCapNext" style="color:var(--acc);">1,000,000</span> MBusd (×2)</span>
+            </div>
+          </div>
+          <div id="cooldownDisplay" style="display:flex;align-items:center;gap:8px;">
+            <span id="cooldownPill" class="cooldown-pill cooldown-clear">✓ Ready to propose</span>
+            <button id="proposeCapBtn" class="propose-cap-btn" style="width:auto;padding:7px 16px;margin-top:0;" onclick="openProposeCapModal()">Propose Cap Raise →</button>
+          </div>
+        </div>
+
+        <div class="sec-title">Active Proposals</div>
+        <div class="card" style="margin-bottom:20px;"><div id="proposals"></div></div>
+
+        <div class="sec-title">Community</div>
+        <div class="card">
+          <div style="padding:16px;border-bottom:1px solid var(--line);">
+            <div class="compose-box">
+              <textarea id="postTxt" placeholder="Share your thoughts…"></textarea>
+              <div class="compose-foot">
+                <span class="compose-hint" id="postHint">Connect wallet to post</span>
+                <button class="post-btn" onclick="doPost()">Post</button>
+              </div>
+            </div>
+          </div>
+          <div id="commFeed"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="side-card"><div class="side-head">Stake MBX</div><div class="side-body">
+          <div class="apy-display"><div class="apy-num">18.0%</div><div class="apy-label">Current APY</div></div>
+          <div class="form-row"><label class="form-label">Amount</label><input class="form-input" type="number" placeholder="0 MBX"/></div>
+          <div class="info-row"><span class="info-key">Unbonding</span><span class="info-val">7 days</span></div>
+          <div class="info-row" style="margin-bottom:12px;"><span class="info-key">Voting power</span><span class="info-val">0 vMBX</span></div>
+          <button class="main-btn" onclick="toast('Connect wallet to stake MBX')">Stake</button>
+        </div></div>
+
+        <div class="side-card"><div class="side-head">Cap Raise Rules</div><div class="side-body">
+          <div class="info-row"><span class="info-key">Raise amount</span><span class="info-val" style="color:var(--mbusd);">Always ×2</span></div>
+          <div class="info-row"><span class="info-key">Pass threshold</span><span class="info-val">Simple majority (&gt;50%)</span></div>
+          <div class="info-row"><span class="info-key">Voting period</span><span class="info-val">48 hours</span></div>
+          <div class="info-row"><span class="info-key">Cooldown after pass</span><span class="info-val" style="color:var(--warn);">7 days</span></div>
+          <div class="info-row"><span class="info-key">Proposal fee</span><span class="info-val" style="color:var(--acc);">100 MBX → Wallet B</span></div>
+          <div class="info-row"><span class="info-key">Limit</span><span class="info-val">1 proposal / wallet / week</span></div>
+          <div class="info-row"><span class="info-key">Who can propose</span><span class="info-val">Any staked MBX holder</span></div>
+          <div class="info-row"><span class="info-key">Who can vote</span><span class="info-val">All vMBX holders</span></div>
+          <div style="margin-top:12px;padding:10px;background:var(--bg3);border:1px solid var(--line);border-radius:var(--r2);font-size:11px;color:var(--text3);line-height:1.6;">The 7-day cooldown prevents rapid cap doubling. Each new cap level must be observed for a full week before another raise can be proposed.</div>
+        </div></div>
+
+        <div class="side-card"><div class="side-head">MBX Token</div><div class="side-body">
+          <div class="info-row"><span class="info-key">Symbol</span><span class="info-val">MBX</span></div>
+          <div class="info-row"><span class="info-key">Network</span><span class="info-val">Solana (SPL)</span></div>
+          <div class="info-row"><span class="info-key">Supply</span><span class="info-val">1,000,000,000</span></div>
+          <div class="info-row"><span class="info-key">Wallet</span><span class="info-val" style="font-size:9px;">AUBqwdA59PCTQvLSP2ecskUkjuQPcX9ZCybig2iH2Ysz</span></div>
+        </div></div>
+
+        <div class="side-card"><div class="side-head">Cap Raise History</div><div class="side-body">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:10px;line-height:1.5;">Every governance-approved cap raise is logged permanently on-chain.</div>
+          <div id="capHistoryList" style="margin-bottom:12px;"></div>
+        </div></div>
+
+        <div class="side-card"><div class="side-head">Contact</div><div class="side-body">
+          <p style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px;">Partnership, integration, or feedback.</p>
+          <button class="main-btn sec" onclick="openContact()">Send Message</button>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ DOCS ═══════════════════════ -->
+<div id="page-docs" class="page">
+  <div class="container">
+    <div class="page-head"><h1>Documentation</h1><p>How modelbx works, integration guides, and legal information.</p></div>
+    <div class="docs-layout">
+      <div class="docs-nav">
+        <div class="dns-group"><div class="dns-group-title">Overview</div>
+          <button class="dns-link on" onclick="scrollDoc('how',this)">How It Works</button>
+          <button class="dns-link" onclick="scrollDoc('mbusd',this)">MBusd Stablecoin</button>
+          <button class="dns-link" onclick="scrollDoc('liq',this)">Liquidation Model</button>
+          <button class="dns-link" onclick="scrollDoc('priv',this)">Privacy System</button>
+        </div>
+        <div class="dns-group"><div class="dns-group-title">Integration</div>
+          <button class="dns-link" onclick="scrollDoc('integration',this)">DEX Integration</button>
+          <button class="dns-link" onclick="scrollDoc('swap-api',this)">Swap API</button>
+          <button class="dns-link" onclick="scrollDoc('borrow-api',this)">Borrow API</button>
+          <button class="dns-link" onclick="scrollDoc('widget',this)">Swap Widget</button>
+        </div>
+        <div class="dns-group"><div class="dns-group-title">Legal</div>
+          <button class="dns-link" onclick="scrollDoc('terms',this)">Terms of Service</button>
+          <button class="dns-link" onclick="scrollDoc('privpol',this)">Privacy Policy</button>
+          <button class="dns-link" onclick="scrollDoc('risk',this)">Risk Disclosure</button>
+          <button class="dns-link" onclick="scrollDoc('disclaimer',this)">Disclaimer</button>
+        </div>
+      </div>
+      <div class="docs-content">
+
+        <div class="doc-sec" id="doc-how">
+          <h2>How modelbx Works</h2>
+          <p>modelbx is a non-custodial DEX aggregator and lending protocol on Solana, combining three systems: a <strong>multi-DEX swap aggregator</strong>, a <strong>native AMM pool layer</strong>, and a <strong>MBusd stablecoin minting engine</strong>.</p>
+          <h3>Swap Aggregation</h3>
+          <p>On each swap, modelbx queries all integrated DEXes simultaneously and splits your order across the best venues atomically. Platform fee: <strong>0.01%</strong> — 20× cheaper than Jupiter.</p>
+          <h3>Native Liquidity Pools</h3>
+          <p>modelbx runs its own AMM pools backed by MBX and SOL protocol reserves. Native pools — especially MBX/MBusd — receive routing priority, maximizing fee returns for LPs.</p>
+          <h3>MBusd Lending & 1:1 Exchange</h3>
+          <p>Users lock MBX or SOL and mint <strong>MBusd</strong> at 0% interest. MBusd is immediately usable in modelbx pools or redeemable 1:1 for USDC via the Borrow page exchange. See MBusd section for full detail.</p>
+          <div class="callout"><strong>Non-custodial.</strong> The protocol cannot pause, access user funds, or alter positions. All logic is enforced by immutable on-chain programs.</div>
+        </div>
+
+        <div class="doc-sec" id="doc-mbusd">
+          <h2>MBusd — modelbx Stablecoin</h2>
+          <p>MBusd is overcollateralized, protocol-minted, and pegged to $1.00 USD. It is backed by MBX and SOL locked in user positions and a protocol-owned reserve.</p>
+          <h3>Hard Floor — Redemption</h3>
+          <p>Any holder can redeem 1 MBusd for exactly $1.00 of collateral (MBX or SOL) at any time, drawn from the lowest-ratio position. MBusd cannot sustainably trade below $1.00.</p>
+          <h3>Hard Ceiling — Mint Cost</h3>
+          <p>The 0.5% one-time mint fee discourages minting when MBusd trades above $1.005. New supply brings price back down. The two forces create a tight $1.00 band.</p>
+          <h3>1:1 USDC Exchange</h3>
+          <p>MBusd can be redeemed directly for USDC at 1:1 on the Borrow page — no slippage, no market price risk. This is backed by a USDC reserve held by the protocol. Conversely, USDC can be deposited to mint MBusd directly, providing additional peg reinforcement from the USDC side.</p>
+          <h3>Why Not Borrow USDC Directly?</h3>
+          <p>A third-party stablecoin like USDC can be frozen, blacklisted, or depegged through Circle's actions. With MBusd, the peg is enforced by collateral already in the system. The 1:1 USDC exchange window adds a second layer of peg assurance without creating systemic USDC dependency.</p>
+          <div class="doc-note"><strong>MBusd is not issued by any legal entity.</strong> It is a token minted entirely by on-chain smart contract logic, backed by user-locked MBX and SOL collateral plus protocol USDC reserves for the 1:1 exchange window.</div>
+        </div>
+
+        <div class="doc-sec" id="doc-liq">
+          <h2>Liquidation Model</h2>
+          <p>modelbx uses redistribution-based liquidation (Liquity v1 model). No auctions, no bots required, no bad debt possible.</p>
+          <h3>Trigger</h3>
+          <p>Position CR falls below <strong>150%</strong> → liquidated immediately by protocol.</p>
+          <h3>Step 1 — Stability Pool</h3>
+          <p>Stability Pool mUSD absorbs the debt first. Depositors receive the liquidated MBX/SOL collateral — typically 5–10% profit over spot value.</p>
+          <h3>Step 2 — Redistribution</h3>
+          <p>If Stability Pool is insufficient, remaining collateral + debt distribute <strong>proportionally across all open positions</strong> by collateral size. Each borrower absorbs more collateral than debt. Bad debt is structurally impossible.</p>
+          <div class="doc-warn"><strong>If you have an open borrow position:</strong> redistributions slightly decrease your CR. Maintain well above 150% — we recommend 200%+ during volatile markets.</div>
+        </div>
+
+        <div class="doc-sec" id="doc-priv">
+          <h2>Privacy System</h2>
+          <p>No KYC, no account, no identity verification required anywhere on modelbx.</p>
+          <h3>Privacy Relay</h3><p>Swap instructions route through a decentralized relay network, not directly to RPC. No IP-to-transaction mapping is logged.</p>
+          <h3>MEV Protection</h3><p>Transactions submit through a private mempool, blocking sandwich bots and front-runners.</p>
+          <h3>Address Rotation</h3><p>Fresh program-derived address (PDA) per swap, making chain analytics significantly harder.</p>
+          <h3>Private LP</h3><p>LP positions owned by a PDA, not your wallet directly, breaking on-chain wallet-to-LP association.</p>
+          <div class="callout"><strong>Note:</strong> All transactions settle on the public Solana blockchain. Privacy features reduce traceability — they do not make transactions invisible.</div>
+        </div>
+
+        <div class="doc-sec" id="doc-integration">
+          <h2>DEX Integration</h2>
+          <p>Any Solana DEX or AMM can integrate with modelbx routing. Once registered, your pools are included in all route calculations in real time.</p>
+          <h3>Requirements</h3>
+          <ul><li>Deployed Solana on-chain program with public pool accounts</li><li>Atomic swap instruction support (single-instruction or CPI)</li><li>Public IDL or instruction spec</li></ul>
+          <div class="ep-block">
+            <div class="ep-url"><span class="mbadge mpost">POST</span>https://api.modelbx.io/v1/register-dex</div>
+            <table class="param-tbl"><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody>
+              <tr><td class="pn">dex_name</td><td class="pt">string</td><td class="pd">Protocol display name</td></tr>
+              <tr><td class="pn">program_id</td><td class="pt">string</td><td class="pd">On-chain program address (base58)</td></tr>
+              <tr><td class="pn">pool_accounts</td><td class="pt">string[]</td><td class="pd">Pool accounts to index</td></tr>
+              <tr><td class="pn">idl_url</td><td class="pt">string</td><td class="pd">URL to Anchor IDL JSON</td></tr>
+              <tr><td class="pn">contact_email</td><td class="pt">string</td><td class="pd">Technical contact</td></tr>
+            </tbody></table>
+          </div>
+          <div class="code-block">{
+  "dex_name":      "YourDEX",
+  "program_id":    "YourProgramId111111111111111111111111111111",
+  "pool_accounts": ["PoolAccount111...","PoolAccount222..."],
+  "idl_url":       "https://yourdex.io/idl.json",
+  "contact_email": "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="482c2d3e0831273d3a2c2d30662127">[email&#160;protected]</a>"
+}</div>
+        </div>
+
+        <div class="doc-sec" id="doc-swap-api">
+          <h2>Swap API</h2>
+          <div class="ep-block"><div class="ep-url"><span class="mbadge mget">GET</span>https://api.modelbx.io/v1/quote</div><div class="ep-desc">Get best route across all integrated DEXes.</div>
+            <table class="param-tbl"><thead><tr><th>Param</th><th>Type</th><th>Description</th></tr></thead><tbody>
+              <tr><td class="pn">inputMint</td><td class="pt">string</td><td class="pd">Input token mint address</td></tr>
+              <tr><td class="pn">outputMint</td><td class="pt">string</td><td class="pd">Output token mint address</td></tr>
+              <tr><td class="pn">amount</td><td class="pt">number</td><td class="pd">Amount in base units</td></tr>
+              <tr><td class="pn">slippageBps</td><td class="pt">number</td><td class="pd">Slippage in bps (50 = 0.5%)</td></tr>
+            </tbody></table>
+          </div>
+          <div class="code-block">import { ModelbxSwap } from "@modelbx/sdk";
+const client = new ModelbxSwap();
+const quote  = await client.getQuote({ inputMint, outputMint, amount: 1_000_000_000 });
+const { transaction } = await client.buildSwapTransaction({ quoteResponse: quote, userPublicKey: wallet.publicKey });
+await wallet.sendTransaction(transaction, connection);</div>
+        </div>
+
+        <div class="doc-sec" id="doc-borrow-api">
+          <h2>Borrow / MBusd API</h2>
+          <div class="ep-block"><div class="ep-url"><span class="mbadge mpost">POST</span>https://api.modelbx.io/v1/open-trove</div><div class="ep-desc">Open a position and mint MBusd against MBX or SOL collateral.</div>
+            <table class="param-tbl"><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody>
+              <tr><td class="pn">collateralMint</td><td class="pt">string</td><td class="pd">MBX or SOL mint address</td></tr>
+              <tr><td class="pn">collateralAmount</td><td class="pt">number</td><td class="pd">Collateral in base units</td></tr>
+              <tr><td class="pn">mbusdToMint</td><td class="pt">number</td><td class="pd">MBusd to mint (CR must stay >150%)</td></tr>
+              <tr><td class="pn">userPublicKey</td><td class="pt">string</td><td class="pd">Borrower wallet public key</td></tr>
+            </tbody></table>
+          </div>
+          <div class="ep-block"><div class="ep-url"><span class="mbadge mpost">POST</span>https://api.modelbx.io/v1/exchange-mbusd</div><div class="ep-desc">Exchange MBusd for USDC (or USDC for MBusd) at exactly 1:1. No slippage.</div>
+            <table class="param-tbl"><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody>
+              <tr><td class="pn">direction</td><td class="pt">string</td><td class="pd">"mbusd_to_usdc" or "usdc_to_mbusd"</td></tr>
+              <tr><td class="pn">amount</td><td class="pt">number</td><td class="pd">Amount in base units</td></tr>
+              <tr><td class="pn">userPublicKey</td><td class="pt">string</td><td class="pd">User wallet public key</td></tr>
+            </tbody></table>
+          </div>
+          <div class="code-block">// Mint MBusd with SOL collateral
+const { transaction } = await client.openTrove({
+  collateralMint:   "So111...1112",   // SOL
+  collateralAmount: 10_000_000_000,   // 10 SOL
+  mbusdToMint:      500_000_000,      // 500 MBusd
+  userPublicKey:    wallet.publicKey,
+});
+
+// Exchange MBusd → USDC at 1:1
+const { transaction: exTx } = await client.exchangeMBusd({
+  direction: "mbusd_to_usdc",
+  amount:    500_000_000,
+  userPublicKey: wallet.publicKey,
+});</div>
+        </div>
+
+        <div class="doc-sec" id="doc-widget">
+          <h2>Swap Widget</h2>
+          <p>Embed modelbx swap into any website or dApp in two lines. Earn 20% of platform fees on all swaps through your widget.</p>
+          <div class="code-block">&lt;script src="https://cdn.modelbx.io/widget.js"&gt;&lt;/script&gt;
+&lt;div id="modelbx-swap"
+  data-input-mint="So111...1112"
+  data-output-mint="MBusd111...111"
+  data-theme="dark"
+  data-referral="YOUR_WALLET_ADDRESS"&gt;
+&lt;/div&gt;
+&lt;script&gt;ModelbxWidget.init();&lt;/script&gt;</div>
+        </div>
+
+        <div class="doc-sec" id="doc-terms">
+          <h2>Terms of Service</h2>
+          <p style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:16px;">Last updated: 2025 · Subject to change</p>
+          <div class="legal">
+            <h3>1. Acceptance</h3><p>By accessing or using modelbx (the "Protocol"), you agree to these Terms. If you do not agree, do not use the Protocol.</p>
+            <h3>2. Nature of the Protocol</h3><p>modelbx is a decentralized, non-custodial protocol on Solana. <strong>modelbx does not custody, hold, or control user funds at any time.</strong></p>
+            <h3>3. No Financial Advice</h3><p>Nothing on modelbx constitutes financial, investment, legal, or tax advice. Consult qualified professionals before making financial decisions.</p>
+            <h3>4. No Warranty</h3><p>The Protocol is provided "as is" and "as available" without warranty of any kind, express or implied, including merchantability or fitness for a particular purpose.</p>
+            <h3>5. Limitation of Liability</h3><p><strong>To the fullest extent permitted by law, modelbx, its contributors, developers, and associated parties shall not be liable for any direct, indirect, incidental, special, consequential, or punitive damages, including loss of funds, loss of profits, or any other financial loss arising from use of the Protocol.</strong> This includes losses from smart contract bugs, liquidation, MBusd depeg, oracle failure, network failure, slippage, or redistribution events.</p>
+            <h3>6. User Responsibility</h3><p>You are solely responsible for wallet security, understanding DeFi risks, and compliance with laws in your jurisdiction.</p>
+            <h3>7. Prohibited Use</h3><p>You may not use the Protocol for money laundering, sanctions evasion, or any activity prohibited by applicable law.</p>
+            <h3>8. Modifications</h3><p>These Terms may be updated at any time. Continued use constitutes acceptance.</p>
+          </div>
+        </div>
+
+        <div class="doc-sec" id="doc-privpol">
+          <h2>Privacy Policy</h2>
+          <p style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:16px;">Last updated: 2025</p>
+          <div class="legal">
+            <h3>1. No PII Collected</h3><p>modelbx does not collect, store, or process personally identifiable information. No registration, email, name, or identity document is required.</p>
+            <h3>2. Wallet Addresses</h3><p>Wallet addresses are used locally in your browser only to display balances and build unsigned transactions. <strong>Wallet addresses are never transmitted to modelbx servers.</strong></p>
+            <h3>3. On-Chain Data</h3><p>Submitted transactions are permanently and publicly recorded on the Solana blockchain. modelbx has no control over on-chain data visibility.</p>
+            <h3>4. Analytics</h3><p>We may collect anonymous aggregate usage metrics. No wallet addresses, IP addresses, or identifying data are included.</p>
+            <h3>5. Cookies</h3><p>Local storage may be used for UI preferences only. No tracking or advertising cookies are used.</p>
+          </div>
+        </div>
+
+        <div class="doc-sec" id="doc-risk">
+          <h2>Risk Disclosure</h2>
+          <div class="doc-warn"><strong>DeFi involves significant risk. You may lose all funds. Read carefully.</strong></div>
+          <div class="legal">
+            <h3>Smart Contract Risk</h3><p>The protocol runs on audited but not infallible smart contracts. Bugs or exploits could result in partial or total loss of locked funds.</p>
+            <h3>Liquidation Risk</h3><p>If CR falls below 150%, your position is liquidated automatically and immediately. <strong>This can happen rapidly during market volatility.</strong> Maintain CR well above 150% at all times.</p>
+            <h3>Redistribution Risk</h3><p>Liquidations redistributed to your position decrease your CR. Monitor regularly, especially during volatile periods.</p>
+            <h3>MBusd Peg Risk</h3><p>The MBusd peg is maintained by hard redemption mechanics and USDC exchange reserves. Extreme market conditions could temporarily affect the peg. The peg mechanism provides strong assurance but does not guarantee it under all circumstances.</p>
+            <h3>Oracle Risk</h3><p>Price oracles (Pyth Network) may fail, be manipulated, or lag. This could result in incorrect liquidations.</p>
+            <h3>Regulatory Risk</h3><p>Regulatory treatment of DeFi, stablecoins, and privacy technology varies and may change. You are responsible for local law compliance.</p>
+            <h3>Market Risk</h3><p>MBX, SOL, and all protocol assets are highly volatile. Values can decline significantly and rapidly.</p>
+          </div>
+        </div>
+
+        <div class="doc-sec" id="doc-disclaimer">
+          <h2>General Disclaimer</h2>
+          <div class="doc-warn"><strong>modelbx is experimental software. Only use funds you are prepared to lose entirely.</strong></div>
+          <div class="legal">
+            <p>modelbx is provided for experimental purposes. It has not been approved by any financial regulator. modelbx is not a bank, broker, exchange, or investment adviser, and holds no financial services licenses.</p>
+            <p><strong>By using modelbx, you confirm that:</strong></p>
+            <ul>
+              <li>You are at least 18 years of age</li>
+              <li>You are not in a jurisdiction where use of this protocol is prohibited</li>
+              <li>You understand and accept all risks described in this documentation</li>
+              <li>You are not relying on modelbx for financial, legal, or investment advice</li>
+              <li>You accept sole responsibility for all decisions made using this protocol</li>
+            </ul>
+            <p>The interface may be modified or discontinued without notice. The on-chain protocol is autonomous and cannot be stopped once deployed. Nothing here creates any partnership, employment, or agency relationship between you and modelbx contributors.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════ CONFIG ═══════════════════════ -->
+<div id="page-config" class="page">
+  <div class="container">
+    <div class="page-head">
+      <h1>Protocol Config</h1>
+      <p>Set your wallet addresses and program IDs here. These are the exact values the protocol needs before going live. Each field is labelled with which wallet from the audit guide it corresponds to.</p>
+    </div>
+
+    <!-- CHECKLIST -->
+    <div style="background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:18px;margin-bottom:28px;">
+      <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;">Pre-Launch Status</div>
+      <div id="statusList"></div>
+    </div>
+
+    <div class="config-layout">
+      <!-- LEFT NAV -->
+      <div class="cfg-nav">
+        <div class="cfg-nav-title">Sections</div>
+        <button class="cfg-link on" onclick="cfgNav('wallets',this)">Wallet Addresses</button>
+        <button class="cfg-link" onclick="cfgNav('programs',this)">Program IDs</button>
+        <button class="cfg-link" onclick="cfgNav('api',this)">API & Backend</button>
+        <button class="cfg-link" onclick="cfgNav('prices',this)">Price Feed</button>
+        <button class="cfg-link" onclick="cfgNav('cap',this)">Supply Cap</button>
+      </div>
+
+      <!-- RIGHT CONTENT -->
+      <div>
+
+        <!-- WALLETS -->
+        <div class="cfg-section" id="cfg-wallets">
+          <h2>Wallet Addresses</h2>
+          <p class="cfg-subtitle">Paste each wallet address into the correct field. The label shows which wallet role it is (from the audit guide). Green border = address entered. Orange = still needs filling.</p>
+
+          <div class="cfg-field">
+            <div class="cfg-field-label">
+              Wallet A — Owner / Deployer
+              <span class="cfg-field-wallet">YOUR EXISTING WALLET</span>
+            </div>
+            <div class="cfg-field-desc">This is <strong style="color:var(--text);">your personal wallet</strong> — AUBqwdA59PCTQvLSP2ecskUkjuQPcX9ZCybig2iH2Ysz. Used for team badge verification and as initial program upgrade authority. In production this should be removed from the frontend and kept only server-side.</div>
+            <input class="cfg-input set" id="cfg_ownerWallet" type="text" placeholder="Your deployer wallet address" value="AUBqwdA59PCTQvLSP2ecskUkjuQPcX9ZCybig2iH2Ysz" oninput="cfgUpdate()"/>
+            <div style="margin-top:6px;font-size:11px;color:var(--mbusd);font-family:var(--mono);">✓ Where it goes in code: PROTOCOL_CONFIG.ownerWallet</div>
+          </div>
+
+          <div class="cfg-field">
+            <div class="cfg-field-label">
+              Wallet B — Fee Treasury
+              <span class="cfg-field-wallet">CREATE ON SQUADS.SO</span>
+            </div>
+            <div class="cfg-field-desc">A <strong style="color:var(--text);">new multisig wallet</strong> you create at squads.so. All 0.01% swap fees and 0.5% MBusd mint fees flow here automatically when the AMM program is deployed. Set this as <code style="font-family:var(--mono);font-size:10px;background:var(--bg3);padding:1px 5px;border-radius:3px;">fee_recipient</code> in the AMM program's initialize instruction.</div>
+            <input class="cfg-input unset" id="cfg_feeTreasury" type="text" placeholder="Wallet B — create at squads.so first" oninput="cfgUpdate()"/>
+            <div style="margin-top:6px;font-size:11px;color:var(--text3);font-family:var(--mono);">→ Where it goes in code: PROTOCOL_CONFIG.feeTreasury</div>
+            <div style="margin-top:4px;font-size:11px;color:var(--text3);font-family:var(--mono);">→ Where it goes in smart contract: AMM initialize() fee_recipient parameter</div>
+          </div>
+
+          <div class="cfg-field">
+            <div class="cfg-field-label">
+              Wallet C — Liquidity Reserve
+              <span class="cfg-field-wallet">CREATE NEW WALLET</span>
+            </div>
+            <div class="cfg-field-desc">A <strong style="color:var(--text);">new wallet</strong> that holds the MBX and SOL you will seed the MBX/MBusd and SOL/MBusd pools with at launch. Recommended minimum: $50,000–$200,000 equivalent. This wallet sends tokens to the AMM pool accounts during the seed liquidity step.</div>
+            <input class="cfg-input unset" id="cfg_liquidityReserve" type="text" placeholder="Wallet C — new wallet for liquidity seeding" oninput="cfgUpdate()"/>
+            <div style="margin-top:6px;font-size:11px;color:var(--text3);font-family:var(--mono);">→ Where it goes in code: PROTOCOL_CONFIG.liquidityReserve</div>
+            <div style="margin-top:4px;font-size:11px;color:var(--text3);font-family:var(--mono);">→ Where it goes at launch: source wallet when calling addLiquidity() to seed initial pools</div>
+          </div>
+
+          <div class="cfg-field">
+            <div class="cfg-field-label">
+              Wallet D — USDC Reserve
+              <span class="cfg-field-wallet">CREATE NEW WALLET</span>
+            </div>
+            <div class="cfg-field-desc">A <strong style="color:var(--text);">new wallet</strong> holding USDC that backs the MBusd 1:1 exchange window. When a user redeems MBusd for USDC, the smart contract transfers USDC from this wallet's token account to the user and burns the MBusd. <strong style="color:var(--warn);">Must always hold USDC ≥ outstanding 1:1 demand.</strong> Top up regularly.</div>
+            <input class="cfg-input unset" id="cfg_usdcReserve" type="text" placeholder="Wallet D — new wallet, fund with USDC" oninput="cfgUpdate()"/>
+            <div style="margin-top:6px;font-size:11px;color:var(--text3);font-family:var(--mono);">→ Where it goes in code: PROTOCOL_CONFIG.usdcReserve</div>
+            <div style="margin-top:4px;font-size:11px;color:var(--text3);font-family:var(--mono);">→ Where it goes in smart contract: Trove Manager initialize() usdc_reserve_account parameter</div>
+          </div>
+
+          <button class="cfg-save-btn" onclick="cfgSave()">Save Wallet Config</button>
+        </div>
+
+        <!-- PROGRAMS -->
+        <div class="cfg-section" id="cfg-programs">
+          <h2>Program IDs</h2>
+          <p class="cfg-subtitle">After deploying smart contracts on devnet/mainnet with Anchor, paste the deployed program IDs here. You get these from the output of <code style="font-family:var(--mono);font-size:11px;background:var(--bg3);padding:1px 5px;border-radius:3px;">anchor deploy</code>.</p>
+
+          <div class="cfg-field">
+            <div class="cfg-field-label">MBX Token Mint Address</div>
+            <div class="cfg-field-desc">The SPL token mint address created by <code style="font-family:var(--mono);font-size:10px;background:var(--bg3);padding:1px 5px;border-radius:3px;">spl-token create-token</code>. This is how the frontend identifies MBX in token accounts and swap routes.</div>
+            <input class="cfg-input unset" id="cfg_mbxMint" type="text" placeholder="MBX mint address — from spl-token create-token" oninput="cfgUpdate()"/>
+            <div style="margin-top:6px;font-size:11px;color:var(--text3);font-family:var(--mono);">→ Where it goes in code: PROTOCOL_CONFIG.mbxMintAddress</div>
+          </div>
+
+          <div class="cfg-field">
+            <div class="cfg-field-label">MBusd Token Mint Address</div>
+            <div class="cfg-field-desc">The MBusd SPL token mint — created by the Trove Manager program on first deploy. This is a Program Derived Address (PDA), not a wallet you create manually. The program generates it.</div>
+            <input class="cfg-input unset" id="cfg_mbusdMint" type="text" placeholder="MBusd mint PDA — from Trove Manager deploy" oninput="cfgUpdate()"/>
+            <div style="margin-top:6px;font-size:11px;color:var(--text3);font-family:var(--mono);">→ Where it goes in code: PROTOCOL_CONFIG.mbusdMintAddress</div>
+          </div>
+
+          <div class="cfg-field">
+            <div class="cfg-field-label">AMM Pool Program ID</div>
+            <div class="cfg-field-desc">The on-chain program ID of your deployed AMM (liquidity pools) program. Required for the frontend to build swap and add-liquidity transactions correctly.</div>
+            <input class="cfg-input unset" id="cfg_ammProgram" type="text" placeholder="AMM program ID — from anchor deploy output" oninput="cfgUpdate()"/>
+            <div style="margin-top:6px;font-size:11px;color:var(--text3);font-family:var(--mono);">→ Where it goes in code: PROTOCOL_CONFIG.ammProgramId</div>
+          </div>
+
+          <div class="cfg-field">
+            <div class="cfg-field-label">Trove Manager Program ID (Borrow / MBusd)</div>
+            <div class="cfg-field-desc">The on-chain program ID of your Trove Manager (MBusd mint / borrow / liquidation) program. Required for the Borrow page to build open-trove and exchange transactions.</div>
+            <input class="cfg-input unset" id="cfg_borrowProgram" type="text" placeholder="Trove Manager program ID — from anchor deploy" oninput="cfgUpdate()"/>
+            <div style="margin-top:6px;font-size:11px;color:var(--text3);font-family:var(--mono);">→ Where it goes in code: PROTOCOL_CONFIG.borrowProgramId</div>
+          </div>
+
+          <button class="cfg-save-btn" onclick="cfgSave()">Save Program Config</button>
+        </div>
+
+        <!-- API -->
+        <div class="cfg-section" id="cfg-api">
+          <h2>API & Backend</h2>
+          <p class="cfg-subtitle">Once you deploy the modelbx backend API (Node.js), enter its URL here. All swap quotes, DEX registration requests, and exchange transactions route through this endpoint.</p>
+
+          <div class="cfg-field">
+            <div class="cfg-field-label">API Base URL</div>
+            <div class="cfg-field-desc">The root URL of your deployed backend. Example: <code style="font-family:var(--mono);font-size:10px;background:var(--bg3);padding:1px 5px;border-radius:3px;">https://api.modelbx.io/v1</code>. All API calls (/quote, /swap, /open-trove, /exchange-mbusd, /register-dex) are appended to this base. Deploy backend to Railway, Fly.io, or Vercel Functions.</div>
+            <input class="cfg-input unset" id="cfg_apiBase" type="text" placeholder="https://api.modelbx.io/v1" oninput="cfgUpdate()"/>
+            <div style="margin-top:6px;font-size:11px;color:var(--text3);font-family:var(--mono);">→ Where it goes in code: PROTOCOL_CONFIG.apiBase</div>
+          </div>
+
+          <button class="cfg-save-btn" onclick="cfgSave()">Save API Config</button>
+        </div>
+
+        <!-- PRICES -->
+        <div class="cfg-section" id="cfg-prices">
+          <h2>Price Feed</h2>
+          <p class="cfg-subtitle">Currently running on mock (hardcoded) prices. When the Pyth oracle integration is ready, switch the mode here to enable live prices.</p>
+
+          <div style="background:var(--bg2);border:1px solid rgba(242,153,74,0.25);border-radius:var(--r);padding:16px;margin-bottom:16px;">
+            <div style="font-size:11px;font-weight:600;color:var(--warn);font-family:var(--mono);margin-bottom:8px;">⚠ Current Mode: MOCK PRICES</div>
+            <div style="font-size:12px;color:var(--text2);line-height:1.6;">All prices shown in the interface (swap rates, borrow collateral values) are hardcoded demo values. They do NOT reflect real market prices. This must be replaced with a live Pyth Network oracle feed before real trading.</div>
+          </div>
+
+          <div class="cfg-field">
+            <div class="cfg-field-label">Price Feed Mode</div>
+            <div class="cfg-field-desc">Set to <code style="font-family:var(--mono);font-size:10px;background:var(--bg3);padding:1px 5px;border-radius:3px;">mock</code> for demo. Set to <code style="font-family:var(--mono);font-size:10px;background:var(--bg3);padding:1px 5px;border-radius:3px;">pyth</code> once Pyth oracle SDK is integrated in the backend. The frontend will then call your API's /prices endpoint which queries Pyth in real time.</div>
+            <select class="cfg-input" id="cfg_priceFeed" oninput="cfgUpdate()">
+              <option value="mock" selected>mock — hardcoded demo prices (current)</option>
+              <option value="pyth">pyth — live Pyth Network oracle (requires backend)</option>
+            </select>
+            <div style="margin-top:6px;font-size:11px;color:var(--text3);font-family:var(--mono);">→ Where it goes in code: PROTOCOL_CONFIG.priceFeedMode</div>
+          </div>
+
+          <div style="background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-top:4px;">
+            <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;">Current Mock Prices</div>
+            <div id="mockPriceTable"></div>
+          </div>
+
+          <button class="cfg-save-btn" onclick="cfgSave()">Save Price Config</button>
+        </div>
+
+        <!-- SUPPLY CAP -->
+        <div class="cfg-section" id="cfg-cap">
+          <h2>Supply Cap Controls</h2>
+          <p class="cfg-subtitle">Set the initial MBusd supply cap at launch. You can raise, lower, or remove it at any time using the admin controls or a governance proposal.</p>
+
+          <div style="background:rgba(52,211,153,0.04);border:1px solid rgba(52,211,153,0.2);border-radius:var(--r);padding:14px 16px;margin-bottom:16px;">
+            <div style="font-size:11px;font-weight:600;color:var(--mbusd);font-family:var(--mono);margin-bottom:6px;">Why a supply cap?</div>
+            <div style="font-size:12px;color:var(--text2);line-height:1.6;">Starting with a cap limits how much MBusd can be minted while the protocol is new. If there is an undiscovered bug, the cap limits the blast radius. Once you are confident the protocol is running cleanly — typically 2–6 weeks after launch — you lift it. Liquity, Maker, and almost every serious stablecoin protocol launched with a cap.</div>
+          </div>
+
+          <div class="cfg-field">
+            <div class="cfg-field-label">Launch Supply Cap (MBusd)</div>
+            <div class="cfg-field-desc">The maximum total MBusd that can exist across all borrowers at launch. Recommended: 500,000 at launch, raise to 5,000,000 after 2 weeks, then remove cap entirely once the protocol is stable. Set to 0 to disable the cap entirely (not recommended at launch).</div>
+            <input class="cfg-input" id="cfg_supplyCap" type="number" placeholder="500000" value="500000" oninput="cfgUpdateCap()"/>
+            <div style="margin-top:6px;font-size:11px;color:var(--text3);font-family:var(--mono);">→ Where it goes in code: PROTOCOL_CONFIG.mbusdSupplyCap</div>
+            <div style="margin-top:4px;font-size:11px;color:var(--text3);font-family:var(--mono);">→ Where it goes in smart contract: Trove Manager initialize() mbusd_supply_cap parameter</div>
+          </div>
+
+          <div class="cfg-field">
+            <div class="cfg-field-label">Max Single Swap (USD)</div>
+            <div class="cfg-field-desc">Maximum USD value of a single swap transaction. Limits large trades from destabilising thin pools at launch. Raise this as liquidity deepens. Set to 0 to disable.</div>
+            <input class="cfg-input" id="cfg_swapCap" type="number" placeholder="10000" value="10000" oninput="cfgUpdateCap()"/>
+            <div style="margin-top:6px;font-size:11px;color:var(--text3);font-family:var(--mono);">→ Where it goes in code: PROTOCOL_CONFIG.swapSizeCap</div>
+            <div style="margin-top:4px;font-size:11px;color:var(--text3);font-family:var(--mono);">→ Where it goes in smart contract: AMM initialize() max_swap_usd parameter</div>
+          </div>
+
+          <div style="background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:14px;">
+            <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;">Suggested Lift Schedule</div>
+            <div id="liftScheduleTable"></div>
+          </div>
+
+          <button class="cfg-save-btn" onclick="cfgSaveCap()">Save Cap Config</button>
+        </div>
+
+      </div><!-- /right content -->
+    </div><!-- /config-layout -->
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="overlay" id="walletOverlay">
+  <div class="modal"><button class="modal-x" onclick="closeModal('walletOverlay')">✕</button><h2>Connect Wallet</h2><p>Select your Solana wallet</p>
+    <div class="wallet-list">
+      <div class="wallet-item" onclick="doConnect('Phantom')"><div class="w-icon" style="background:#ab9ff2">👻</div><div><div class="w-name">Phantom</div><div class="w-tag">Most popular</div></div></div>
+      <div class="wallet-item" onclick="doConnect('Solflare')"><div class="w-icon" style="background:#ff8c00">🔥</div><div><div class="w-name">Solflare</div><div class="w-tag">Non-custodial</div></div></div>
+      <div class="wallet-item" onclick="doConnect('Backpack')"><div class="w-icon" style="background:#e33d3d">🎒</div><div><div class="w-name">Backpack</div><div class="w-tag">xNFT wallet</div></div></div>
+      <div class="wallet-item" onclick="doConnect('Glow')"><div class="w-icon" style="background:#7c4dff">✨</div><div><div class="w-name">Glow</div><div class="w-tag">Beautiful UI</div></div></div>
+      <div class="wallet-item" onclick="doConnect('Slope')"><div class="w-icon" style="background:#6ec6ff">🏔</div><div><div class="w-name">Slope</div><div class="w-tag">Mobile-first</div></div></div>
+      <div class="wallet-item" onclick="doConnect('Exodus')"><div class="w-icon" style="background:#00d4ff">⬡</div><div><div class="w-name">Exodus</div><div class="w-tag">Multi-asset</div></div></div>
+      <div class="wallet-item" onclick="doConnect('Coinbase')"><div class="w-icon" style="background:#0052ff">🔵</div><div><div class="w-name">Coinbase Wallet</div><div class="w-tag">Self-custody</div></div></div>
+      <div class="wallet-item" onclick="doConnect('Trust')"><div class="w-icon" style="background:#3375BB">🛡</div><div><div class="w-name">Trust Wallet</div><div class="w-tag">Multi-chain</div></div></div>
+      <div class="wallet-item" onclick="doConnect('Atomic')"><div class="w-icon" style="background:#00e5a0">⚛</div><div><div class="w-name">Atomic Wallet</div><div class="w-tag">Decentralized</div></div></div>
+      <div class="wallet-item" onclick="doConnect('Math')"><div class="w-icon" style="background:#6d28d9">∑</div><div><div class="w-name">Math Wallet</div><div class="w-tag">Universal</div></div></div>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="contactOverlay">
+  <div class="modal"><button class="modal-x" onclick="closeModal('contactOverlay')">✕</button><h2>Contact</h2><p>We respond within 24 hours.</p>
+    <div class="form-row"><label class="form-label">Subject</label><input class="form-input" type="text" placeholder="Partnership / Integration / Bug / Other"/></div>
+    <div class="form-row"><label class="form-label">Message</label><textarea class="form-input" rows="4" placeholder="Your message…" style="resize:vertical;font-family:var(--sans);line-height:1.5;"></textarea></div>
+    <button class="main-btn" style="margin-top:8px;" onclick="toast('Message sent.');closeModal('contactOverlay')">Send</button>
+  </div>
+</div>
+<div class="overlay" id="tokenOverlay">
+  <div class="modal"><button class="modal-x" onclick="closeModal('tokenOverlay')">✕</button><h2>Select Token</h2><p>Search by name</p>
+    <input class="form-input" type="text" placeholder="SOL, MBusd, MBX…" id="tokSearch" oninput="filterToks()" style="margin-bottom:12px;"/>
+    <div class="wallet-list" id="tokList"></div>
+  </div>
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<!-- PROPOSE CAP RAISE MODAL -->
+<div class="overlay" id="proposeCapOverlay">
+  <div class="modal" style="max-width:480px;">
+    <button class="modal-x" onclick="closeModal('proposeCapOverlay')">✕</button>
+    <h2>Propose Supply Cap Raise</h2>
+    <p>Submit a governance proposal to double the MBusd supply cap. Voting is open for 48 hours. Simple majority passes it.</p>
+
+    <div class="cap-math" id="proposeCapMath">
+      <span class="cap-math-from" id="propMathFrom">500,000 MBusd</span>
+      <span class="cap-math-arrow">→</span>
+      <span class="cap-math-to" id="propMathTo">1,000,000 MBusd</span>
+      <span class="cap-math-x">×2</span>
+    </div>
+
+    <div style="background:var(--bg3);border:1px solid var(--line);border-radius:var(--r2);padding:13px;margin-bottom:14px;">
+      <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">What happens if this passes</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.7;">
+        1. Voting runs for <strong style="color:var(--text);">48 hours</strong><br/>
+        2. If &gt;50% of vMBX votes Yes → cap doubles automatically<br/>
+        3. A <strong style="color:var(--warn);">7-day cooldown</strong> starts — no new cap raise can be proposed until it expires<br/>
+        4. The raise is logged permanently on-chain with the vote tally
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">Reason for this raise (optional)</label>
+      <textarea class="form-input" id="capPropReason" rows="2" placeholder="e.g. Protocol has been stable for 2 weeks, liquidity is growing…" style="resize:none;font-family:var(--sans);line-height:1.5;"></textarea>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:rgba(167,139,250,0.05);border:1px solid rgba(167,139,250,0.2);border-radius:var(--r2);margin-bottom:10px;gap:12px;flex-wrap:wrap;">
+      <div style="font-size:12px;color:var(--text2);line-height:1.5;">
+        <strong style="color:var(--acc);">Proposal fee: 100 MBX</strong><br/>
+        <span style="font-size:11px;color:var(--text3);">Sent automatically to Fee Treasury (Wallet B) on submit. Non-refundable if proposal fails.</span>
+      </div>
+      <div style="font-size:11px;font-family:var(--mono);color:var(--text3);padding:6px 10px;border:1px solid var(--line);border-radius:6px;white-space:nowrap;">1 proposal / wallet / week</div>
+    </div>
+    <div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:14px;padding:10px;background:var(--bg3);border-radius:var(--r2);">
+      In production: 100 MBX transfers to Wallet B, and an on-chain proposal is created. All vMBX holders vote. If majority Yes → Governance program calls <code style="background:var(--bg2);padding:1px 5px;border-radius:3px;">set_supply_cap</code> on the Trove Manager automatically.
+    </div>
+    <button class="propose-cap-btn" onclick="submitCapProposal()">Submit — Pay 100 MBX & Propose</button>
+  </div>
+</div>
+
+<!-- SUPPLY CAP MODALS -->
+<div class="overlay" id="capLiftOverlay">
+  <div class="modal">
+    <button class="modal-x" onclick="closeModal('capLiftOverlay')">✕</button>
+    <h2>Lift Supply Cap</h2>
+    <p>Raise the MBusd supply cap. Only do this once the protocol has been running stably.</p>
+    <div class="form-row">
+      <label class="form-label">New Cap (MBusd) — current: <span id="liftCurrentCap">500,000</span></label>
+      <input class="form-input" type="number" id="liftCapInput" placeholder="e.g. 5000000"/>
+    </div>
+    <div style="padding:10px 13px;background:var(--bg3);border:1px solid rgba(52,211,153,0.2);border-radius:var(--r2);margin-bottom:12px;font-size:12px;color:var(--text2);line-height:1.5;">
+      <strong style="color:var(--mbusd);">Suggested schedule:</strong> Launch at 500K → lift to 2M after 2 weeks → lift to 10M after 4 weeks → remove cap after protocol audit confirms stability.
+    </div>
+    <div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:12px;">In production: this calls the Trove Manager program's <code style="background:var(--bg2);padding:1px 5px;border-radius:3px;">set_supply_cap</code> instruction, signed by Wallet B (multisig). The on-chain change takes effect immediately on the next block.</div>
+    <button class="main-btn" style="background:linear-gradient(135deg,rgba(52,211,153,0.15),rgba(52,211,153,0.05));border:1px solid rgba(52,211,153,0.35);color:var(--mbusd);" onclick="applyCapLift()">Confirm Cap Lift</button>
+  </div>
+</div>
+
+<div class="overlay" id="capLowerOverlay">
+  <div class="modal">
+    <button class="modal-x" onclick="closeModal('capLowerOverlay')">✕</button>
+    <h2>Lower Supply Cap</h2>
+    <p>Reduce the MBusd supply cap. Cannot be set below current minted supply.</p>
+    <div class="form-row">
+      <label class="form-label">New Cap (MBusd) — current: <span id="lowerCurrentCap">500,000</span></label>
+      <input class="form-input" type="number" id="lowerCapInput" placeholder="e.g. 250000"/>
+    </div>
+    <div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:12px;">Note: new cap cannot be less than the current minted supply. If you need to pause all new minting, set cap equal to the current supply.</div>
+    <button class="main-btn sec" onclick="applyCapLower()">Confirm Lower Cap</button>
+  </div>
+</div>
+
+<div class="overlay" id="capRemoveOverlay">
+  <div class="modal">
+    <button class="modal-x" onclick="closeModal('capRemoveOverlay')">✕</button>
+    <h2>Remove Supply Cap</h2>
+    <p>Make MBusd minting unlimited. Only do this once the protocol has been running stably for several weeks and has passed its economic audit.</p>
+    <div style="padding:12px;background:rgba(242,153,74,0.06);border:1px solid rgba(242,153,74,0.25);border-radius:var(--r2);margin-bottom:14px;font-size:12px;color:rgba(242,153,74,0.9);line-height:1.5;">
+      <strong>Before removing the cap, confirm:</strong><br/>
+      ✓ Smart contract audit passed with zero critical findings<br/>
+      ✓ Protocol has been live for at least 4 weeks with no incidents<br/>
+      ✓ Stability Pool has sufficient MBusd to absorb liquidations<br/>
+      ✓ USDC reserve is fully funded for 1:1 exchange demand
+    </div>
+    <div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:12px;">In production: sets <code style="background:var(--bg2);padding:1px 5px;border-radius:3px;">mbusd_supply_cap = u64::MAX</code> in the Trove Manager program via a multisig transaction.</div>
+    <button class="main-btn" style="background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.35);color:var(--mbusd);" onclick="applyCapRemove()">Remove Cap — Make Unlimited</button>
+  </div>
+</div>
+<div class="mobile-nav">
+  <button class="mob-tab on" onclick="nav('swap',this)">Swap</button>
+  <button class="mob-tab" onclick="nav('explore',this)">Explore</button>
+  <button class="mob-tab" onclick="nav('borrow',this)">Borrow</button>
+  <button class="mob-tab" onclick="nav('governance',this)">Gov</button>
+  <button class="mob-tab" onclick="nav('docs',this)">Docs</button>
+  <button class="mob-tab" onclick="nav('config',this)">Config</button>
+</div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+// ─────────────────────────────────────────────────────────────────
+// MODELBX PROTOCOL CONFIG
+// When deploying to production, replace these placeholder values
+// with your real wallet addresses and program IDs.
+// These are the ONLY places you need to update before go-live.
+// ─────────────────────────────────────────────────────────────────
+const PROTOCOL_CONFIG = {
+  // WALLET A — Owner / Deployer wallet. Used for team badge on community board.
+  // Set this to your personal deployer wallet after removing from frontend.
+  // In production: load from server-side env variable, never hardcode here.
+  ownerWallet:       'WALLET_A_DEPLOYER_ADDRESS_HERE',
+
+  // WALLET B — Fee Treasury (Squads multisig recommended).
+  // All 0.01% swap fees + 0.5% MBusd mint fees flow here automatically.
+  feeTreasury:       'WALLET_B_FEE_TREASURY_ADDRESS_HERE',
+
+  // WALLET C — Liquidity Reserve.
+  // Holds MBX + SOL used to seed MBX/MBusd and SOL/MBusd pools at launch.
+  liquidityReserve:  'WALLET_C_LIQUIDITY_RESERVE_ADDRESS_HERE',
+
+  // WALLET D — USDC Reserve.
+  // Backs the MBusd 1:1 USDC exchange window.
+  // Must always hold USDC >= outstanding 1:1 redemption demand.
+  usdcReserve:       'WALLET_D_USDC_RESERVE_ADDRESS_HERE',
+
+  // PROGRAM IDs — Set after deploying smart contracts to mainnet.
+  ammProgramId:      'PROGRAM_ID_AMM_POOL_HERE',
+  borrowProgramId:   'PROGRAM_ID_TROVE_MANAGER_HERE',
+  mbxMintAddress:    'MBX_TOKEN_MINT_ADDRESS_HERE',
+  mbusdMintAddress:  'MBusd_TOKEN_MINT_ADDRESS_HERE',
+
+  // API base URL — point to your deployed backend
+  apiBase:           'https://api.modelbx.io/v1',
+
+  // Price feed mode: 'mock' for demo, 'pyth' when oracle integrated
+  priceFeedMode:     'mock',
+
+  // ── SUPPLY CAP CONTROLS ──
+  // mbusdSupplyCap: maximum MBusd that can be minted protocol-wide.
+  // Set conservatively at launch, lift via admin or governance as protocol matures.
+  // 0 = no cap enforced (fully open). Any positive number = hard cap in MBusd.
+  mbusdSupplyCap:    500000,      // Launch default: 500,000 MBusd
+  mbusdCurrentSupply: 0,          // Tracks live minted supply (updated by on-chain reads)
+  capLiftEnabled:    true,        // Whether the owner/multisig can lift the cap directly
+  swapSizeCap:       10000,       // Max single swap in USD equivalent. 0 = no cap.
+};
+// ─────────────────────────────────────────────────────────────────
+
+let connected=false, wallet='', pickTarget='sell', privMode=true;
+let sellTok='SOL', buyTok='MBusd';
+
+// PRICES — mock data. Replace with live Pyth oracle feed before launch.
+// priceFeedMode: 'mock' means these static values are used.
+// When priceFeedMode is set to 'pyth', these are overridden by live data.
+const PRICES={SOL:183.24,USDC:1,USDT:1,MBusd:1,BONK:.000021,JUP:.82,WIF:1.14,PYTH:.38,RAY:2.41,MBX:.042,USD1:1};
+const TOKS=Object.keys(PRICES);
+
+function nav(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.mob-tab').forEach(t=>t.classList.remove('on'));
+  if(el)el.classList.add(el.classList.contains('mob-tab')?'on':'active');
+  window.scrollTo(0,0);
+}
+function togglePriv(){
+  privMode=document.getElementById('privToggle').checked;
+  document.getElementById('privBar').classList.toggle('on',privMode);
+  document.getElementById('swapBanner').style.display=privMode?'flex':'none';
+}
+function openWallet(){document.getElementById('walletOverlay').classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function doConnect(name){
+  connected=true;
+  // PRODUCTION: Replace with real address from @solana/wallet-adapter-react
+  // Never hardcode a real wallet address here.
+  wallet='demo...wallet';
+  const b=document.getElementById('connectBtn');
+  b.textContent=wallet;b.classList.add('connected');
+  document.getElementById('swapBtn').textContent='Swap';
+  document.getElementById('postHint').textContent=wallet;
+  document.getElementById('portGate').style.display='none';
+  document.getElementById('portContent').style.display='block';
+  closeModal('walletOverlay');toast(name+' connected');
+}
+function calcSwap(){
+  const amt=parseFloat(document.getElementById('sellAmt').value)||0;
+  const rate=(PRICES[sellTok]||1)/(PRICES[buyTok]||1);
+  const out=amt*rate*0.9999;
+  document.getElementById('buyAmt').value=out>0?out.toFixed(4):'';
+  document.getElementById('sellUsd').textContent='$'+(amt*(PRICES[sellTok]||1)).toFixed(2);
+  document.getElementById('buyUsd').textContent='$'+(out*(PRICES[buyTok]||1)).toFixed(2);
+  document.getElementById('minRec').textContent=(out*.995).toFixed(4)+' '+buyTok;
+}
+function flipToks(){[sellTok,buyTok]=[buyTok,sellTok];document.getElementById('sellTok').textContent=sellTok;document.getElementById('buyTok').textContent=buyTok;calcSwap();}
+function setSlip(el){el.closest('.slip-row').querySelectorAll('.slip-btn').forEach(b=>b.classList.remove('on'));el.classList.add('on');}
+function doSwap(){if(!connected){openWallet();return;}const a=document.getElementById('sellAmt').value;if(!a||a<=0){toast('Enter an amount');return;}toast('Routing '+a+' '+sellTok+' → '+buyTok+(privMode?' via private relay':''));}
+function openPick(t){pickTarget=t;document.getElementById('tokSearch').value='';renderToks();document.getElementById('tokenOverlay').classList.add('open');}
+function renderToks(){const q=(document.getElementById('tokSearch').value||'').toLowerCase();document.getElementById('tokList').innerHTML=TOKS.filter(t=>t.toLowerCase().includes(q)).map(t=>`<div class="wallet-item" onclick="pickTok('${t}')"><div class="w-icon" style="background:var(--bg4);font-size:11px;font-weight:600;font-family:var(--mono);">${t.slice(0,3)}</div><div><div class="w-name">${t}</div><div class="w-tag">$${PRICES[t]}</div></div></div>`).join('');}
+function filterToks(){renderToks();}
+function pickTok(t){if(pickTarget==='sell'){sellTok=t;document.getElementById('sellTok').textContent=t;}else{buyTok=t;document.getElementById('buyTok').textContent=t;}closeModal('tokenOverlay');calcSwap();}
+
+// BORROW CALC
+function calcBorrow(){
+  const a=parseFloat(document.getElementById('collAmt').value)||0;
+  const p=document.getElementById('collAsset').value==='sol'?183.24:0.042;
+  const val=a*p,max=val/1.5;
+  document.getElementById('borrowOut').value=max>0?max.toFixed(2):'';
+  document.getElementById('maxMint').textContent=max.toFixed(2)+' MBusd';
+  const h=val>0?val/max:0;
+  document.getElementById('healthNum').textContent=h>0?h.toFixed(2):'—';
+  document.getElementById('healthFill').style.width=Math.min(100,Math.max(0,(h/3)*100))+'%';
+}
+
+// 1:1 EXCHANGE
+function calcEx1(){const v=parseFloat(document.getElementById('exMBusdIn').value)||0;document.getElementById('exUSDCOut').value=v>0?v.toFixed(2):'';}
+function calcEx2(){const v=parseFloat(document.getElementById('exUSDCIn').value)||0;document.getElementById('exMBusdOut').value=v>0?v.toFixed(2):'';}
+
+// TOKEN TABLE
+const toks=[{r:1,n:'Solana',s:'SOL',p:'$183.24',c:'+4.2%',up:true,v:'$1.2B',m:'$84.1B'},{r:2,n:'USDC',s:'USDC',p:'$1.00',c:'0.0%',up:true,v:'$840M',m:'$42B'},{r:3,n:'MBusd',s:'MBusd',p:'$1.00',c:'0.0%',up:true,v:'$28M',m:'$14M'},{r:4,n:'Bonk',s:'BONK',p:'$0.0000210',c:'+12.1%',up:true,v:'$210M',m:'$1.4B'},{r:5,n:'Dogwifhat',s:'WIF',p:'$1.14',c:'+7.8%',up:true,v:'$120M',m:'$1.1B'},{r:6,n:'Pyth',s:'PYTH',p:'$0.38',c:'+2.1%',up:true,v:'$42M',m:'$520M'},{r:7,n:'Raydium',s:'RAY',p:'$2.41',c:'-0.8%',up:false,v:'$36M',m:'$480M'},{r:8,n:'modelbx',s:'MBX',p:'$0.042',c:'—',up:true,v:'—',m:'$42M'}];
+document.getElementById('tokenTbl').innerHTML=toks.map(t=>`<tr><td class="mono muted">${t.r}</td><td><div style="display:flex;align-items:center;gap:10px;"><div style="width:26px;height:26px;border-radius:50%;background:var(--bg3);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:9px;font-family:var(--mono);color:var(--text3);">${t.s.slice(0,3)}</div><div><div style="font-size:13px;font-weight:500;">${t.n}</div><div class="muted" style="font-size:10px;font-family:var(--mono);">${t.s}</div></div></div></td><td class="mono">${t.p}</td><td class="mono ${t.up?'pos':'neg'}">${t.c}</td><td class="mono muted">${t.v}</td><td class="mono muted">${t.m}</td></tr>`).join('');
+
+// POOLS — MBX and SOL backed, MBX/MBusd featured
+const pools=[
+  {a:'MBX',b:'MBusd',fee:'0.05%',tvl:'$28.4M',apy:'44.0%',native:true},
+  {a:'SOL',b:'MBusd',fee:'0.05%',tvl:'$64.2M',apy:'26.4%',native:true},
+  {a:'MBusd',b:'USDC',fee:'0.01%',tvl:'$8.1M',apy:'4.2%',native:true},
+  {a:'SOL',b:'USDC',fee:'0.05%',tvl:'$42.1M',apy:'18.2%',native:false},
+  {a:'MBX',b:'SOL',fee:'0.30%',tvl:'$2.4M',apy:'88.0%',native:false},
+];
+document.getElementById('poolList').innerHTML=pools.map(p=>`<div class="pool-item${p.native?' pool-native':''}"><div><div style="font-size:13px;font-weight:500;color:var(--white);">${p.a} / ${p.b}${p.native?' <span style="font-size:9px;font-family:var(--mono);color:var(--mbusd);border:1px solid rgba(52,211,153,0.3);padding:1px 5px;border-radius:3px;margin-left:4px;">NATIVE</span>':''}</div><div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:2px;">${p.fee} fee</div></div><div style="text-align:right;"><div style="font-size:12px;font-family:var(--mono);color:var(--text);">${p.tvl}</div><div style="font-size:11px;color:var(--text2);font-family:var(--mono);margin-top:2px;">${p.apy} APY</div></div></div>`).join('');
+
+// PORTFOLIO
+const pt=[{s:'SOL',a:'32.4',u:'$5,937'},{s:'USDC',a:'2,400',u:'$2,400'},{s:'MBusd',a:'200',u:'$200'},{s:'MBX',a:'20,000',u:'$840'}];
+document.getElementById('portGrid').innerHTML=pt.map(t=>`<div class="port-card"><div class="pc-sym">${t.s}</div><div class="pc-amt">${t.a}</div><div class="pc-usd">${t.u}</div></div>`).join('');
+
+// PROPOSALS
+// ══════════════════════════════════════════════════════
+// GOVERNANCE ENGINE
+// ══════════════════════════════════════════════════════
+
+// Cooldown state — 7 days between cap raise proposals (in ms, 604800000 = 7 days)
+// For demo: set to 0 so cooldown is expired on load
+const CAP_RAISE_COOLDOWN_MS = 604800000; // 7 days
+const CAP_VOTE_DURATION_MS  = 172800000; // 48 hours
+let lastCapRaiseTimestamp = 0; // timestamp of last approved cap raise (0 = never)
+let cooldownRemaining = 0;
+
+// Proposal list — cap raise proposals are type:'cap', others are type:'general'
+const props = [
+  { id:'MBP-001', type:'general', title:'Reduce platform fee from 0.02% to 0.01%',
+    status:'active', y:68, n:32, ends:'2d 14h' },
+  { id:'MBP-002', type:'general', title:'Expand MBusd collateral to include stSOL',
+    status:'active', y:81, n:19, ends:'5d 2h' },
+  { id:'MBP-003', type:'general', title:'Allocate 5% of fees to MBX buyback & burn',
+    status:'passed', y:74, n:26, ends:'Ended' },
+  { id:'MBP-004', type:'cap', title:'Raise MBusd supply cap: 500,000 → 1,000,000 MBusd (×2)',
+    status:'passed', y:89, n:11, ends:'Ended',
+    capFrom:500000, capTo:1000000 },
+];
+
+// Safe text setter — used everywhere instead of innerHTML for user content
+function setTxt(el, text) { if(el) el.textContent = text; }
+
+// Render all proposals with XSS-safe DOM building
+function renderProposals() {
+  const feed = document.getElementById('proposals');
+  if(!feed) return;
+  feed.innerHTML = '';
+
+  props.forEach(p => {
+    const wrap = document.createElement('div');
+    wrap.className = 'proposal' + (p.type === 'cap' ? '' : '');
+    if(p.type === 'cap') wrap.style.cssText = 'background:rgba(52,211,153,0.03);border-left:2px solid rgba(52,211,153,0.3);';
+
+    // Status tag
+    const tag = document.createElement('span');
+    if(p.type === 'cap') {
+      tag.className = 'prop-cap-tag';
+      tag.textContent = p.status === 'active' ? 'CAP RAISE — VOTING' : 'CAP RAISE — ' + p.status.toUpperCase();
+    } else {
+      tag.className = 'prop-status ' + (p.status === 'active' ? 'prop-active' : 'prop-passed');
+      tag.textContent = p.status.toUpperCase();
+    }
+    wrap.appendChild(tag);
+
+    // Title
+    const title = document.createElement('div');
+    title.className = 'prop-title';
+    title.textContent = p.title;
+    wrap.appendChild(title);
+
+    // Meta
+    const meta = document.createElement('div');
+    meta.className = 'prop-meta';
+    meta.textContent = p.id + ' · Ends ' + p.ends;
+    wrap.appendChild(meta);
+
+    // Cap math display for cap proposals
+    if(p.type === 'cap' && p.capFrom) {
+      const math = document.createElement('div');
+      math.className = 'cap-math';
+      math.style.margin = '8px 0';
+      const from = document.createElement('span');
+      from.className = 'cap-math-from';
+      from.textContent = fmtNum(p.capFrom) + ' MBusd';
+      const arrow = document.createElement('span');
+      arrow.className = 'cap-math-arrow';
+      arrow.textContent = '→';
+      const to = document.createElement('span');
+      to.className = 'cap-math-to';
+      to.textContent = fmtNum(p.capTo) + ' MBusd';
+      const x2 = document.createElement('span');
+      x2.className = 'cap-math-x';
+      x2.textContent = '×2';
+      math.appendChild(from); math.appendChild(arrow);
+      math.appendChild(to);   math.appendChild(x2);
+      wrap.appendChild(math);
+    }
+
+    // Vote bar
+    const barWrap = document.createElement('div');
+    barWrap.className = 'vote-bar';
+    const yBar = document.createElement('div');
+    yBar.className = 'vote-y';
+    yBar.style.width = p.y + '%';
+    const nBar = document.createElement('div');
+    nBar.className = 'vote-n';
+    nBar.style.width = p.n + '%';
+    barWrap.appendChild(yBar); barWrap.appendChild(nBar);
+    wrap.appendChild(barWrap);
+
+    const nums = document.createElement('div');
+    nums.className = 'vote-nums';
+    const ySpan = document.createElement('span');
+    ySpan.className = 'pos'; ySpan.textContent = p.y + '% Yes';
+    const nSpan = document.createElement('span');
+    nSpan.className = 'neg'; nSpan.textContent = p.n + '% No';
+    nums.appendChild(ySpan); nums.appendChild(nSpan);
+    wrap.appendChild(nums);
+
+    // Majority indicator
+    const majority = document.createElement('div');
+    majority.style.cssText = 'font-size:10px;font-family:var(--mono);color:var(--text3);margin-top:4px;';
+    majority.textContent = p.y > 50
+      ? '✓ Majority reached (' + p.y + '% > 50% threshold)'
+      : '✗ No majority yet (' + p.y + '% — needs >50%)';
+    if(p.y > 50) majority.style.color = 'var(--pos)';
+    wrap.appendChild(majority);
+
+    // Vote buttons for active proposals
+    if(p.status === 'active') {
+      const actions = document.createElement('div');
+      actions.className = 'vote-actions';
+      const yes = document.createElement('button');
+      yes.className = 'vote-btn vote-yes';
+      yes.textContent = p.type === 'cap' ? 'Vote Yes — Double Cap' : 'Vote Yes';
+      yes.onclick = () => castVote(p.id, 'Yes', p.type);
+      const no = document.createElement('button');
+      no.className = 'vote-btn vote-no';
+      no.textContent = 'Vote No';
+      no.onclick = () => castVote(p.id, 'No', p.type);
+      actions.appendChild(yes); actions.appendChild(no);
+      wrap.appendChild(actions);
+    }
+
+    feed.appendChild(wrap);
+  });
+}
+renderProposals();
+
+// Cast a vote — cap votes trigger doubling on win simulation
+function castVote(id, direction, type) {
+  if(!connected) { openWallet(); return; }
+  const p = props.find(x => x.id === id);
+  if(!p) return;
+
+  // Simulate adding vote weight
+  if(direction === 'Yes') { p.y = Math.min(99, p.y + 3); p.n = 100 - p.y; }
+  else                    { p.n = Math.min(99, p.n + 3); p.y = 100 - p.n; }
+
+  renderProposals();
+
+  if(type === 'cap') {
+    toast('Voted ' + direction + ' on cap raise ' + id + '. If >50% Yes when voting closes, cap doubles automatically.');
+  } else {
+    toast('Voted ' + direction + ' on ' + id);
+  }
+}
+
+// ── PROPOSE CAP RAISE FLOW ──
+
+function openProposeCapModal() {
+  if(!connected) { openWallet(); return; }
+
+  // Check cooldown
+  const now = Date.now();
+  const elapsed = now - lastCapRaiseTimestamp;
+  if(lastCapRaiseTimestamp > 0 && elapsed < CAP_RAISE_COOLDOWN_MS) {
+    const daysLeft = Math.ceil((CAP_RAISE_COOLDOWN_MS - elapsed) / 86400000);
+    toast('7-day cooldown active. One raise per week — wait until cooldown expires before proposing again.');
+    return;
+  }
+
+  // Update modal math
+  const current = PROTOCOL_CONFIG.mbusdSupplyCap;
+  const next    = current === 0 ? 0 : current * 2;
+  const fromEl  = document.getElementById('propMathFrom');
+  const toEl    = document.getElementById('propMathTo');
+  if(fromEl) fromEl.textContent = current === 0 ? 'No cap (∞)' : fmtNum(current) + ' MBusd';
+  if(toEl)   toEl.textContent   = next === 0    ? 'No cap (∞)' : fmtNum(next) + ' MBusd';
+
+  document.getElementById('proposeCapOverlay').classList.add('open');
+}
+
+// Track which wallets have proposed this week (keyed by wallet address)
+// In production this is enforced on-chain — one active cap proposal at a time.
+const weeklyProposers = {}; // wallet -> ISO week string
+
+function getISOWeek() {
+  const d = new Date();
+  const jan4 = new Date(d.getFullYear(), 0, 4);
+  const week = Math.ceil(((d - jan4) / 86400000 + jan4.getDay() + 1) / 7);
+  return d.getFullYear() + '-W' + String(week).padStart(2,'0');
+}
+
+function canPropose(walletAddr) {
+  const week = getISOWeek();
+  return weeklyProposers[walletAddr] !== week;
+}
+
+function markProposed(walletAddr) {
+  weeklyProposers[walletAddr] = getISOWeek();
+}
+
+function submitCapProposal() {
+  if(!connected) { openWallet(); return; }
+
+  // CHECK: 1 proposal per wallet per week
+  if(!canPropose(wallet)) {
+    toast('You have already submitted a cap raise proposal this week. One proposal per wallet per 7 days.');
+    return;
+  }
+
+  // CHECK: 7-day cooldown since last approved raise
+  const now = Date.now();
+  const elapsed = now - lastCapRaiseTimestamp;
+  if(lastCapRaiseTimestamp > 0 && elapsed < CAP_RAISE_COOLDOWN_MS) {
+    toast('7-day cooldown active. Wait until the cooldown expires before proposing another raise.');
+    return;
+  }
+
+  // CHECK: No other cap raise already active
+  const activeCapProp = props.find(p => p.type === 'cap' && p.status === 'active');
+  if(activeCapProp) {
+    toast('A cap raise proposal (' + activeCapProp.id + ') is already active. Wait for it to resolve before submitting another.');
+    return;
+  }
+
+  // DEDUCT 100 MBX proposal fee (simulated — in production calls token transfer to Wallet B)
+  const PROPOSAL_FEE_MBX = 100;
+  const feeDest = PROTOCOL_CONFIG.feeTreasury || 'Wallet B (Fee Treasury)';
+
+  const current = PROTOCOL_CONFIG.mbusdSupplyCap;
+  const next    = current * 2;
+  const reason  = document.getElementById('capPropReason');
+  const reasonText = reason ? reason.value.trim().slice(0, 200) : '';
+
+  // Mark this wallet as having proposed this week
+  markProposed(wallet);
+
+  // Build new proposal entry
+  const newId = 'MBP-' + String(props.length + 1).padStart(3,'0');
+  const newProp = {
+    id: newId,
+    type: 'cap',
+    title: 'Raise MBusd supply cap: ' + fmtNum(current) + ' → ' + fmtNum(next) + ' MBusd (×2)',
+    status: 'active',
+    y: 0, n: 0,
+    ends: '48h',
+    capFrom: current,
+    capTo: next,
+    proposer: wallet,
+    reason: reasonText,
+  };
+  props.unshift(newProp);
+  renderProposals();
+  updateGovCapStatus();
+
+  closeModal('proposeCapOverlay');
+  if(reason) reason.value = '';
+
+  toast(
+    PROPOSAL_FEE_MBX + ' MBX fee sent to ' + feeDest.slice(0,8) + '…' +
+    ' · Proposal ' + newId + ' live — 48h voting window open. Majority Yes → cap doubles to ' + fmtNum(next) + ' MBusd.'
+  );
+}
+
+// Simulate executing a passed cap proposal (demo: called manually for now)
+function executeCapRaise(propId) {
+  const p = props.find(x => x.id === propId);
+  if(!p || p.type !== 'cap') return;
+  if(p.y <= 50) { toast('Proposal did not reach majority — cannot execute.'); return; }
+
+  // Apply cap change
+  const old = PROTOCOL_CONFIG.mbusdSupplyCap;
+  PROTOCOL_CONFIG.mbusdSupplyCap = p.capTo;
+  p.status = 'passed';
+  p.ends = 'Executed';
+
+  // Start cooldown
+  lastCapRaiseTimestamp = Date.now();
+  cooldownRemaining = CAP_RAISE_COOLDOWN_MS;
+
+  // Log to cap history
+  capHistory.push({
+    action: 'Cap raised via governance (' + p.id + ')',
+    from: old, to: p.capTo,
+    time: new Date().toLocaleTimeString()
+  });
+
+  refreshCapUI();
+  renderProposals();
+  renderCapHistory();
+  updateGovCapStatus();
+
+  toast('Cap raise executed — ' + fmtNum(old) + ' → ' + fmtNum(p.capTo) + ' MBusd. 7-day cooldown started.');
+}
+
+// Updates the governance status bar at the top of the page
+function updateGovCapStatus() {
+  const current = PROTOCOL_CONFIG.mbusdSupplyCap;
+  const next    = current === 0 ? 0 : current * 2;
+
+  const govCur  = document.getElementById('govCapCurrent');
+  const govNext = document.getElementById('govCapNext');
+  if(govCur)  govCur.textContent  = current === 0 ? '∞ (no cap)' : fmtNum(current);
+  if(govNext) govNext.textContent = next === 0    ? 'n/a'        : fmtNum(next);
+
+  // Cooldown check
+  const now     = Date.now();
+  const elapsed = now - lastCapRaiseTimestamp;
+  const onCooldown = lastCapRaiseTimestamp > 0 && elapsed < CAP_RAISE_COOLDOWN_MS;
+  const pill    = document.getElementById('cooldownPill');
+  const btn     = document.getElementById('proposeCapBtn');
+  if(pill) {
+    if(onCooldown) {
+      const daysLeft = Math.ceil((CAP_RAISE_COOLDOWN_MS - elapsed) / 86400000);
+      pill.className = 'cooldown-pill cooldown-active';
+      pill.textContent = '⏳ 7-day cooldown active';
+      if(btn) { btn.disabled = true; btn.style.opacity = '0.4'; btn.style.cursor = 'not-allowed'; }
+    } else {
+      pill.className = 'cooldown-pill cooldown-clear';
+      pill.textContent = '✓ Ready to propose';
+      if(btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }
+    }
+  }
+}
+
+// Init governance UI
+updateGovCapStatus();
+
+// COMMUNITY — XSS-safe: all user content set via textContent, never innerHTML
+const TEAM_WALLET = PROTOCOL_CONFIG.ownerWallet; // team badge check uses config, not hardcoded
+const posts=[
+  {addr:'modelbx team',time:'Just now',body:'modelbx is live. MBX/MBusd native pools now open — backed by MBX and SOL reserves. Mint MBusd from your MBX, add liquidity, and redeem 1:1 for USDC anytime.',team:true},
+  {addr:'7xKz...m9Qr',time:'3h ago',body:'The 1:1 MBusd/USDC exchange is what makes this safe. No need to worry about peg risk.',team:false},
+  {addr:'3pLm...xR4n',time:'5h ago',body:'MBX/MBusd pool at 44% APY and growing. Best yield on Solana right now.',team:false}
+];
+
+// SECURITY FIX: All user-generated content uses textContent (never innerHTML)
+// This prevents XSS injection from malicious post content.
+function renderPosts(){
+  const feed = document.getElementById('commFeed');
+  feed.innerHTML = ''; // safe — clearing only, not inserting user content
+  posts.forEach(p => {
+    const wrap = document.createElement('div'); wrap.className='cp';
+    const head = document.createElement('div'); head.className='cp-head';
+    const addr = document.createElement('span'); addr.className='cp-addr';
+    addr.textContent = p.addr.length > 12 ? p.addr.slice(0,4)+'...'+p.addr.slice(-4) : p.addr;
+    head.appendChild(addr);
+    if(p.team){const badge=document.createElement('span');badge.className='cp-badge';badge.textContent='TEAM';head.appendChild(badge);}
+    const time = document.createElement('span'); time.className='cp-time'; time.textContent=p.time;
+    head.appendChild(time);
+    const body = document.createElement('div'); body.className='cp-body';
+    body.textContent = p.body; // textContent — safe against XSS
+    wrap.appendChild(head); wrap.appendChild(body);
+    feed.appendChild(wrap);
+  });
+}
+renderPosts();
+function doPost(){
+  if(!connected){openWallet();return;}
+  const t=document.getElementById('postTxt').value.trim();
+  if(!t){toast('Write something first');return;}
+  // Truncate to 500 chars to prevent spam
+  const safe = t.slice(0,500);
+  posts.unshift({addr:wallet,time:'Just now',body:safe,team:false});
+  document.getElementById('postTxt').value='';
+  renderPosts();toast('Posted');
+}
+
+
+// CONFIG PAGE
+function cfgNav(id, el) {
+  document.querySelectorAll('.cfg-link').forEach(l=>l.classList.remove('on'));
+  if(el) el.classList.add('on');
+  const t = document.getElementById('cfg-'+id);
+  if(t) t.scrollIntoView({behavior:'smooth'});
+}
+
+function cfgUpdate() {
+  // Update border state based on whether field has a value
+  ['cfg_ownerWallet','cfg_feeTreasury','cfg_liquidityReserve','cfg_usdcReserve',
+   'cfg_mbxMint','cfg_mbusdMint','cfg_ammProgram','cfg_borrowProgram','cfg_apiBase'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    const filled = el.value && el.value.trim().length > 10 && !el.value.includes('_HERE');
+    el.classList.toggle('set', filled);
+    el.classList.toggle('unset', !filled);
+  });
+  updateStatusList();
+}
+
+function updateStatusList() {
+  const checks = [
+    {label:'Wallet A (Owner)', field:'cfg_ownerWallet', required:true},
+    {label:'Wallet B (Fee Treasury)', field:'cfg_feeTreasury', required:true},
+    {label:'Wallet C (Liquidity Reserve)', field:'cfg_liquidityReserve', required:true},
+    {label:'Wallet D (USDC Reserve)', field:'cfg_usdcReserve', required:true},
+    {label:'MBX Mint Address', field:'cfg_mbxMint', required:true},
+    {label:'MBusd Mint Address', field:'cfg_mbusdMint', required:true},
+    {label:'AMM Program ID', field:'cfg_ammProgram', required:true},
+    {label:'Trove Manager Program ID', field:'cfg_borrowProgram', required:true},
+    {label:'API Base URL', field:'cfg_apiBase', required:false},
+  ];
+  const list = document.getElementById('statusList');
+  if(!list) return;
+  list.innerHTML = '';
+  checks.forEach(c => {
+    const el = document.getElementById(c.field);
+    const val = el ? el.value.trim() : '';
+    const filled = val.length > 10 && !val.includes('_HERE') && !val.includes('placeholder');
+    const row = document.createElement('div');
+    row.className = 'cfg-status-row';
+    const key = document.createElement('span');
+    key.className = 'cfg-status-key';
+    key.textContent = c.label;
+    const status = document.createElement('span');
+    status.className = 'cfg-status-val ' + (filled ? 'ok' : (c.required ? 'err' : 'warn'));
+    status.textContent = filled ? '✓ Set' : (c.required ? '✗ Required' : '○ Optional');
+    row.appendChild(key); row.appendChild(status);
+    list.appendChild(row);
+  });
+}
+
+function cfgSave() {
+  // In production: save to a server-side config file or environment variables.
+  // Never commit wallet addresses to a public git repo.
+  // This updates PROTOCOL_CONFIG in memory for the current session.
+  const map = {
+    ownerWallet:'cfg_ownerWallet', feeTreasury:'cfg_feeTreasury',
+    liquidityReserve:'cfg_liquidityReserve', usdcReserve:'cfg_usdcReserve',
+    mbxMintAddress:'cfg_mbxMint', mbusdMintAddress:'cfg_mbusdMint',
+    ammProgramId:'cfg_ammProgram', borrowProgramId:'cfg_borrowProgram',
+    apiBase:'cfg_apiBase'
+  };
+  Object.entries(map).forEach(([k,fid])=>{
+    const el=document.getElementById(fid);
+    if(el&&el.value.trim()) PROTOCOL_CONFIG[k]=el.value.trim();
+  });
+  const pf=document.getElementById('cfg_priceFeed');
+  if(pf) PROTOCOL_CONFIG.priceFeedMode=pf.value;
+  cfgUpdate();
+  toast('Config saved to session. Add to your server-side env file for persistence.');
+}
+
+// Render mock price table on config page
+function renderMockPrices() {
+  const el = document.getElementById('mockPriceTable');
+  if(!el) return;
+  el.innerHTML = '';
+  Object.entries(PRICES).forEach(([tok, price]) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line);font-size:12px;';
+    const k = document.createElement('span');
+    k.style.color = 'var(--text2)'; k.style.fontFamily = 'var(--mono)';
+    k.textContent = tok;
+    const v = document.createElement('span');
+    v.style.color = 'var(--text)'; v.style.fontFamily = 'var(--mono)';
+    v.textContent = '$' + price;
+    row.appendChild(k); row.appendChild(v);
+    el.appendChild(row);
+  });
+}
+
+// Init config page on first load
+updateStatusList();
+renderMockPrices();
+
+
+// ══════════════════════════════════════════════════════
+// SUPPLY CAP SYSTEM
+// ══════════════════════════════════════════════════════
+
+// Formats a number with commas
+function fmtNum(n) {
+  if(n === 0) return '0';
+  if(n >= 1000000) return (n/1000000).toFixed(1).replace(/\.0$/,'') + 'M';
+  if(n >= 1000)    return (n/1000).toFixed(0) + 'K';
+  return n.toLocaleString();
+}
+
+// Refreshes the cap progress bar and all cap-related displays
+function refreshCapUI() {
+  const cap     = PROTOCOL_CONFIG.mbusdSupplyCap;
+  const current = PROTOCOL_CONFIG.mbusdCurrentSupply;
+  const isOpen  = cap === 0;
+  const pct     = isOpen ? 0 : Math.min(100, (current / cap) * 100);
+
+  // Progress bar
+  const bar = document.getElementById('capProgressBar');
+  if(bar) {
+    bar.style.width = pct.toFixed(1) + '%';
+    // Turn red when near cap
+    if(pct > 85) bar.style.background = 'linear-gradient(90deg,var(--warn),var(--neg))';
+    else         bar.style.background = 'linear-gradient(90deg,var(--acc),var(--mbusd))';
+  }
+
+  const capDisplay = isOpen ? '∞ (No cap)' : fmtNum(cap);
+  const pctDisplay = isOpen ? 'Open' : pct.toFixed(1) + '%';
+
+  const el = (id) => document.getElementById(id);
+  if(el('capCurrentDisplay')) el('capCurrentDisplay').textContent = fmtNum(current);
+  if(el('capMaxDisplay'))     el('capMaxDisplay').textContent     = capDisplay;
+  if(el('capPctDisplay'))     el('capPctDisplay').textContent     = pctDisplay;
+  if(el('capMaxLabel'))       el('capMaxLabel').textContent       = isOpen ? 'No cap set' : fmtNum(cap) + ' MBusd';
+  if(el('capNote')) {
+    if(isOpen)       el('capNote').textContent = '⬡ No cap — fully open';
+    else if(pct>85)  el('capNote').textContent = '⚠ Approaching cap — consider lifting';
+    else             el('capNote').textContent = 'Launch cap — lift when protocol is stable';
+  }
+
+  // Stat box
+  if(el('statSupply')) el('statSupply').textContent = fmtNum(current);
+  if(el('statCap'))    el('statCap').textContent    = isOpen ? 'no cap' : fmtNum(cap) + ' cap';
+
+  // Config field sync
+  const cfgEl = el('cfg_supplyCap');
+  if(cfgEl && cfgEl.value === '') cfgEl.value = cap;
+}
+
+// Open cap lift modal
+function openCapLift() {
+  if(!connected) { openWallet(); return; }
+  const el = document.getElementById('liftCurrentCap');
+  if(el) el.textContent = PROTOCOL_CONFIG.mbusdSupplyCap === 0
+    ? 'No cap (∞)' : fmtNum(PROTOCOL_CONFIG.mbusdSupplyCap);
+  document.getElementById('liftCapInput').value = '';
+  document.getElementById('capLiftOverlay').classList.add('open');
+}
+
+// Open cap lower modal
+function openCapLower() {
+  if(!connected) { openWallet(); return; }
+  const el = document.getElementById('lowerCurrentCap');
+  if(el) el.textContent = PROTOCOL_CONFIG.mbusdSupplyCap === 0
+    ? 'No cap (∞)' : fmtNum(PROTOCOL_CONFIG.mbusdSupplyCap);
+  document.getElementById('lowerCapInput').value = '';
+  document.getElementById('capLowerOverlay').classList.add('open');
+}
+
+// Open remove cap modal
+function openCapRemove() {
+  if(!connected) { openWallet(); return; }
+  document.getElementById('capRemoveOverlay').classList.add('open');
+}
+
+// Apply a cap lift
+function applyCapLift() {
+  const val = parseInt(document.getElementById('liftCapInput').value);
+  if(!val || val <= 0) { toast('Enter a valid new cap amount'); return; }
+  const old = PROTOCOL_CONFIG.mbusdSupplyCap;
+  if(old > 0 && val <= old) { toast('New cap must be higher than current cap to lift it'); return; }
+  PROTOCOL_CONFIG.mbusdSupplyCap = val;
+  closeModal('capLiftOverlay');
+  refreshCapUI();
+  // Log to history
+  capHistory.push({ action: 'Lifted cap', from: old, to: val, time: new Date().toLocaleString() });
+  renderCapHistory();
+  toast('Cap lifted to ' + fmtNum(val) + ' MBusd. In production: sign the set_supply_cap transaction with your multisig.');
+}
+
+// Apply a cap lower
+function applyCapLower() {
+  const val = parseInt(document.getElementById('lowerCapInput').value);
+  if(!val || val <= 0) { toast('Enter a valid cap amount'); return; }
+  if(val < PROTOCOL_CONFIG.mbusdCurrentSupply) {
+    toast('Cannot set cap below current minted supply (' + fmtNum(PROTOCOL_CONFIG.mbusdCurrentSupply) + ' MBusd)');
+    return;
+  }
+  const old = PROTOCOL_CONFIG.mbusdSupplyCap;
+  PROTOCOL_CONFIG.mbusdSupplyCap = val;
+  closeModal('capLowerOverlay');
+  refreshCapUI();
+  capHistory.push({ action: 'Lowered cap', from: old, to: val, time: new Date().toLocaleString() });
+  renderCapHistory();
+  toast('Cap lowered to ' + fmtNum(val) + ' MBusd.');
+}
+
+// Remove cap entirely
+function applyCapRemove() {
+  const old = PROTOCOL_CONFIG.mbusdSupplyCap;
+  PROTOCOL_CONFIG.mbusdSupplyCap = 0; // 0 = no cap
+  closeModal('capRemoveOverlay');
+  refreshCapUI();
+  capHistory.push({ action: 'Cap removed (∞)', from: old, to: 0, time: new Date().toLocaleString() });
+  renderCapHistory();
+  toast('Supply cap removed — MBusd minting is now unlimited. In production: sets u64::MAX in Trove Manager.');
+}
+
+// Cap change history log
+const capHistory = [
+  { action: 'Cap set at launch', from: 0, to: 500000, time: 'Launch' }
+];
+
+function renderCapHistory() {
+  const el = document.getElementById('capHistoryList');
+  if(!el) return;
+  el.innerHTML = '';
+  [...capHistory].reverse().forEach(h => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:12px;';
+    const left = document.createElement('div');
+    const action = document.createElement('span');
+    action.style.cssText = 'font-family:var(--mono);color:var(--text);';
+    action.textContent = h.action;
+    const from = document.createElement('span');
+    from.style.cssText = 'font-size:11px;color:var(--text3);font-family:var(--mono);margin-left:10px;';
+    from.textContent = h.from === 0 ? '' : fmtNum(h.from) + ' → ' + (h.to === 0 ? '∞' : fmtNum(h.to));
+    left.appendChild(action); left.appendChild(from);
+    const time = document.createElement('span');
+    time.style.cssText = 'font-size:10px;color:var(--text3);font-family:var(--mono);';
+    time.textContent = h.time;
+    row.appendChild(left); row.appendChild(time);
+    el.appendChild(row);
+  });
+}
+
+// Config cap fields
+function cfgUpdateCap() {
+  const capEl = document.getElementById('cfg_supplyCap');
+  const swapEl = document.getElementById('cfg_swapCap');
+  if(capEl) {
+    const v = parseInt(capEl.value);
+    capEl.classList.toggle('set', !isNaN(v) && v >= 0);
+    capEl.classList.toggle('unset', isNaN(v));
+  }
+  if(swapEl) {
+    const v = parseInt(swapEl.value);
+    swapEl.classList.toggle('set', !isNaN(v) && v >= 0);
+  }
+}
+
+function cfgSaveCap() {
+  const capEl  = document.getElementById('cfg_supplyCap');
+  const swapEl = document.getElementById('cfg_swapCap');
+  if(capEl && capEl.value !== '') {
+    const v = parseInt(capEl.value);
+    if(!isNaN(v)) {
+      PROTOCOL_CONFIG.mbusdSupplyCap = v;
+      refreshCapUI();
+    }
+  }
+  if(swapEl && swapEl.value !== '') {
+    const v = parseInt(swapEl.value);
+    if(!isNaN(v)) PROTOCOL_CONFIG.swapSizeCap = v;
+  }
+  toast('Cap config saved. Set these values in your smart contract deploy script.');
+}
+
+// Suggested lift schedule table in config
+function renderLiftSchedule() {
+  const el = document.getElementById('liftScheduleTable');
+  if(!el) return;
+  const rows = [
+    ['Launch day',      '500,000 MBusd',  'Conservative — limits blast radius of any early bug'],
+    ['Week 2',          '2,000,000 MBusd', 'Protocol running cleanly, liquidity growing'],
+    ['Week 4',          '10,000,000 MBusd','Audit findings all clear, stability confirmed'],
+    ['Month 2+',        '∞ No cap',        'Economic audit passed, community governance vote'],
+  ];
+  rows.forEach(([when, cap, reason]) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:grid;grid-template-columns:100px 130px 1fr;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:11px;';
+    [when, cap, reason].forEach((txt, i) => {
+      const cell = document.createElement('span');
+      cell.style.fontFamily = 'var(--mono)';
+      cell.style.color = i===1 ? 'var(--mbusd)' : i===0 ? 'var(--text)' : 'var(--text3)';
+      cell.textContent = txt;
+      row.appendChild(cell);
+    });
+    el.appendChild(row);
+  });
+}
+
+// Init supply cap UI
+refreshCapUI();
+renderLiftSchedule();
+renderCapHistory();
+
+
+function scrollDoc(id,el){
+  document.querySelectorAll('.dns-link').forEach(l=>l.classList.remove('on'));
+  if(el)el.classList.add('on');
+  const target=document.getElementById('doc-'+id);
+  if(target)target.scrollIntoView({behavior:'smooth'});
+}
+function setPill(el){el.closest('.pill-row').querySelectorAll('.pill').forEach(p=>p.classList.remove('on'));el.classList.add('on');}
+function openContact(){document.getElementById('contactOverlay').classList.add('open');}
+let tTimer;
+function toast(msg){const e=document.getElementById('toastEl');e.textContent=msg;e.classList.add('show');clearTi
